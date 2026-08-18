@@ -1,0 +1,568 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  RECEPTIONIST
+  MANAGER
+  ACCOUNTANT
+}
+
+enum PatientType {
+  ADULT
+  CHILD
+}
+
+enum ServiceDeliveryType {
+  SINGLE_SESSION
+  PROGRAM
+}
+
+enum BillingCycleType {
+  MONTHLY
+  PER_N_SESSIONS
+}
+
+enum CommissionType {
+  PERCENTAGE
+  FIXED
+}
+
+enum SessionStatus {
+  PENDING
+  COMPLETED
+  ABSENT
+  CANCELLED_BY_PATIENT
+  CANCELLED_BY_CENTER
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  DELIVERED
+  CANCELLED
+}
+
+enum ProgramStatus {
+  ACTIVE
+  COMPLETED
+  EXTENDED
+  CANCELLED
+}
+
+enum BillingCycleStatus {
+  OPEN
+  INVOICED
+  CLOSED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIAL
+  PAID
+  VOID
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK_TRANSFER
+  INSURANCE
+}
+
+// ─── AUTHENTICATION & STAFF ───────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      UserRole
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  // Auth.js required fields
+  sessions      AuthSession[]
+  accounts      Account[]
+
+  // Audit references
+  createdSessions          Session[]              @relation("SessionCreatedBy")
+  scheduledAppointments    Appointment[]          @relation("AppointmentScheduledBy")
+  createdPrograms          Program[]              @relation("ProgramCreatedBy")
+  issuedInvoices           Invoice[]              @relation("InvoiceIssuedBy")
+  receivedPayments         Payment[]              @relation("PaymentReceivedBy")
+  uploadedDocuments        Document[]
+  updatedSettings          SystemSetting[]
+  sessionAuditLogs         SessionAuditLog[]
+  therapistTransferLogs    TherapistTransferLog[] @relation("TransferPerformedBy")
+  paidCommissions          TherapistCommission[]  @relation("CommissionPaidBy")
+
+  @@map("users")
+}
+
+// Auth.js tables
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model AuthSession {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("auth_sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Therapist {
+  id             String   @id @default(cuid())
+  fullName       String
+  specialty      String?
+  phone          String?
+  isActive       Boolean  @default(true)
+  commissionType   CommissionType? // PERCENTAGE or FIXED
+  commissionRate   Decimal?        @db.Decimal(5, 2)  // used when type = PERCENTAGE (e.g. 30.00 = 30%)
+  commissionFixed  Decimal?        @db.Decimal(10, 2) // used when type = FIXED (amount per session)
+  // Reserved for future therapist portal — always null in Phase 1
+  userId    String?
+  createdAt DateTime @default(now())
+
+  availability          TherapistAvailability[]
+  availabilityOverrides TherapistAvailabilityOverride[]
+  programs              Program[]
+  appointments          Appointment[]
+  commissions           TherapistCommission[]
+  fromTransfers         TherapistTransferLog[] @relation("TransferFromTherapist")
+  toTransfers           TherapistTransferLog[] @relation("TransferToTherapist")
+
+  @@map("therapists")
+}
+
+// ─── CONFIGURATION ────────────────────────────────────────────────────────────
+
+model Service {
+  id                      String              @id @default(cuid())
+  name                    String
+  description             String?
+  deliveryType            ServiceDeliveryType
+  defaultSessionsPerWeek  Int?
+  defaultTotalSessions    Int?
+  defaultDurationMin      Int                 @default(60)
+  defaultBillingCycleType BillingCycleType?
+  defaultBillingCycleValue Int?
+  defaultPrice            Decimal?            @db.Decimal(10, 2)
+  isActive                Boolean             @default(true)
+  createdAt               DateTime            @default(now())
+
+  sessions  Session[]
+  programs  Program[]
+
+  @@map("services")
+}
+
+// center_name, center_phone, center_address, center_logo_path only
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  updatedBy   String
+  updatedAt   DateTime @updatedAt
+
+  updatedByUser User @relation(fields: [updatedBy], references: [id])
+
+  @@map("system_settings")
+}
+
+model CenterHours {
+  id        String  @id @default(cuid())
+  dayOfWeek Int     // 0=Sunday … 6=Saturday
+  openTime  String  // "HH:mm"
+  closeTime String  // "HH:mm"
+  isOpen    Boolean @default(true)
+
+  @@unique([dayOfWeek])
+  @@map("center_hours")
+}
+
+model CenterHoliday {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  description String?
+
+  @@map("center_holidays")
+}
+
+model Room {
+  id       String  @id @default(cuid())
+  name     String
+  isActive Boolean @default(true)
+
+  appointments Appointment[]
+
+  @@map("rooms")
+}
+
+model TherapistAvailability {
+  id          String    @id @default(cuid())
+  therapistId String
+  dayOfWeek   Int       // 0=Sunday … 6=Saturday
+  startTime   String    // "HH:mm"
+  endTime     String    // "HH:mm"
+
+  therapist Therapist @relation(fields: [therapistId], references: [id])
+
+  @@unique([therapistId, dayOfWeek])
+  @@map("therapist_availability")
+}
+
+model TherapistAvailabilityOverride {
+  id           String   @id @default(cuid())
+  therapistId  String
+  overrideDate DateTime @db.Date
+  isAvailable  Boolean
+  startTime    String?  // null when isAvailable=false (fully blocked)
+  endTime      String?
+  reason       String?
+
+  therapist Therapist @relation(fields: [therapistId], references: [id])
+
+  @@unique([therapistId, overrideDate])
+  @@map("therapist_availability_overrides")
+}
+
+// ─── PATIENTS ─────────────────────────────────────────────────────────────────
+
+model Patient {
+  id          String      @id @default(cuid())
+  fullName    String
+  dob         DateTime?   @db.Date
+  gender      String?
+  phone       String?
+  address     String?
+  nationalId  String?     @unique
+  patientType PatientType @default(ADULT)
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+
+  guardian  Guardian?
+  sessions  Session[]
+  programs  Program[]
+  invoices  Invoice[]
+  payments  Payment[]
+  documents Document[]
+
+  @@map("patients")
+}
+
+model Guardian {
+  id           String  @id @default(cuid())
+  patientId    String  @unique
+  fullName     String
+  relationship String?
+  phone        String?
+  nationalId   String?
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("guardians")
+}
+
+// ─── SESSIONS (Clinical Record — Immutable) ───────────────────────────────────
+
+model Session {
+  id                    String        @id @default(cuid())
+  patientId             String
+  serviceId             String
+  programId             String?
+  programSequenceNumber Int?
+  status                SessionStatus @default(PENDING)
+  outcomeNotes          String?       @db.Text
+  deliveredAt           DateTime?
+  createdBy             String
+  createdAt             DateTime      @default(now())
+
+  patient     Patient      @relation(fields: [patientId], references: [id])
+  service     Service      @relation(fields: [serviceId], references: [id])
+  program     Program?     @relation(fields: [programId], references: [id], onDelete: Restrict)
+  createdByUser User       @relation("SessionCreatedBy", fields: [createdBy], references: [id])
+  appointments  Appointment[]
+  invoiceLines  InvoiceLine[]
+  auditLogs     SessionAuditLog[]
+  documents     Document[]
+  commission    TherapistCommission?
+
+  @@unique([programId, programSequenceNumber])
+  @@index([patientId])
+  @@index([programId])
+  @@map("sessions")
+}
+
+// ─── APPOINTMENTS (Calendar Slot — Mutable) ───────────────────────────────────
+
+model Appointment {
+  id                   String            @id @default(cuid())
+  sessionId            String
+  therapistId          String
+  roomId               String?
+  date                 DateTime          @db.Date
+  startTime            String            // "HH:mm"
+  endTime              String            // "HH:mm"
+  status               AppointmentStatus @default(SCHEDULED)
+  // Rescheduling: cancel old + create new with originalAppointmentId pointing to cancelled
+  isMakeup             Boolean           @default(false)
+  originalAppointmentId String?
+  isInsuranceCovered   Boolean           @default(false)
+  insuranceProviderId  String?
+  insuranceClaimRef    String?
+  scheduledBy          String
+  createdAt            DateTime          @default(now())
+  deletedAt            DateTime?
+
+  session             Session              @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  therapist           Therapist            @relation(fields: [therapistId], references: [id])
+  room                Room?                @relation(fields: [roomId], references: [id])
+  scheduledByUser     User                 @relation("AppointmentScheduledBy", fields: [scheduledBy], references: [id])
+  insuranceProvider   InsuranceProvider?   @relation(fields: [insuranceProviderId], references: [id])
+  originalAppointment Appointment?         @relation("AppointmentReschedule", fields: [originalAppointmentId], references: [id])
+  replacements        Appointment[]        @relation("AppointmentReschedule")
+
+  @@index([date, status])
+  @@index([therapistId, date])
+  @@map("appointments")
+}
+
+// ─── PROGRAMS ─────────────────────────────────────────────────────────────────
+
+model Program {
+  id                     String        @id @default(cuid())
+  patientId              String
+  therapistId            String
+  serviceId              String
+  startDate              DateTime      @db.Date
+  expectedEndDate        DateTime      @db.Date
+  sessionsPerWeek        Int
+  originalPlannedSessions Int
+  plannedSessions        Int
+  status                 ProgramStatus @default(ACTIVE)
+  cancellationReason     String?
+  notes                  String?       @db.Text
+  createdBy              String
+  createdAt              DateTime      @default(now())
+
+  patient       Patient        @relation(fields: [patientId], references: [id])
+  therapist     Therapist      @relation(fields: [therapistId], references: [id])
+  service       Service        @relation(fields: [serviceId], references: [id])
+  createdByUser User           @relation("ProgramCreatedBy", fields: [createdBy], references: [id])
+  sessions      Session[]
+  billingCycles BillingCycle[]
+  transferLogs  TherapistTransferLog[]
+
+  @@index([patientId])
+  @@map("programs")
+}
+
+// ─── BILLING ──────────────────────────────────────────────────────────────────
+
+model InsuranceProvider {
+  id          String  @id @default(cuid())
+  name        String
+  contactInfo String?
+  notes       String? @db.Text
+
+  appointments Appointment[]
+
+  @@map("insurance_providers")
+}
+
+model BillingCycle {
+  id               String             @id @default(cuid())
+  programId        String
+  cycleNumber      Int
+  cycleType        BillingCycleType
+  cycleValue       Int
+  periodStart      DateTime           @db.Date
+  periodEnd        DateTime           @db.Date
+  expectedSessions Int                @default(0)
+  status           BillingCycleStatus @default(OPEN)
+
+  program  Program   @relation(fields: [programId], references: [id])
+  invoices Invoice[]
+
+  @@unique([programId, cycleNumber])
+  @@index([programId])
+  @@map("billing_cycles")
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  billingCycleId String?
+  patientId      String
+  issuedBy       String
+  issueDate      DateTime      @db.Date
+  dueDate        DateTime?     @db.Date
+  totalAmount    Decimal       @default(0) @db.Decimal(10, 2)
+  paidAmount     Decimal       @default(0) @db.Decimal(10, 2)
+  status         InvoiceStatus @default(DRAFT)
+  notes          String?       @db.Text
+  createdAt      DateTime      @default(now())
+
+  billingCycle BillingCycle? @relation(fields: [billingCycleId], references: [id])
+  patient      Patient       @relation(fields: [patientId], references: [id])
+  issuedByUser User          @relation("InvoiceIssuedBy", fields: [issuedBy], references: [id])
+  lines        InvoiceLine[]
+  payments     Payment[]
+
+  @@index([patientId, status])
+  @@index([status])
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  sessionId   String?
+  description String
+  qty         Int     @default(1)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  discount    Decimal @default(0) @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  session Session? @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+
+  @@map("invoice_lines")
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  invoiceId       String
+  patientId       String
+  paymentDate     DateTime      @db.Date
+  amount          Decimal       @db.Decimal(10, 2)
+  method          PaymentMethod
+  referenceNumber String?
+  receivedBy      String
+  notes           String?
+  createdAt       DateTime      @default(now())
+
+  invoice        Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  patient        Patient @relation(fields: [patientId], references: [id])
+  receivedByUser User    @relation("PaymentReceivedBy", fields: [receivedBy], references: [id])
+
+  @@index([invoiceId])
+  @@map("payments")
+}
+
+// ─── DOCUMENTS ────────────────────────────────────────────────────────────────
+
+model Document {
+  id          String   @id @default(cuid())
+  patientId   String
+  programId   String?
+  sessionId   String?
+  title       String
+  filePath    String
+  fileType    String
+  uploadedBy  String
+  uploadedAt  DateTime @default(now())
+  notes       String?
+
+  patient        Patient   @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  session        Session?  @relation(fields: [sessionId], references: [id])
+  uploadedByUser User      @relation(fields: [uploadedBy], references: [id])
+
+  @@map("documents")
+}
+
+// ─── AUDIT ────────────────────────────────────────────────────────────────────
+
+model SessionAuditLog {
+  id            String   @id @default(cuid())
+  sessionId     String
+  action        String
+  previousValue Json?
+  newValue      Json?
+  performedBy   String
+  performedAt   DateTime @default(now())
+
+  session         Session @relation(fields: [sessionId], references: [id])
+  performedByUser User    @relation(fields: [performedBy], references: [id])
+
+  @@index([sessionId])
+  @@map("session_audit_log")
+}
+
+model TherapistTransferLog {
+  id               String   @id @default(cuid())
+  patientId        String
+  programId        String
+  fromTherapistId  String
+  toTherapistId    String
+  transferDate     DateTime @db.Date
+  reason           String?
+  performedBy      String
+  performedAt      DateTime @default(now())
+
+  program         Program   @relation(fields: [programId], references: [id])
+  fromTherapist   Therapist @relation("TransferFromTherapist", fields: [fromTherapistId], references: [id])
+  toTherapist     Therapist @relation("TransferToTherapist", fields: [toTherapistId], references: [id])
+  performedByUser User      @relation("TransferPerformedBy", fields: [performedBy], references: [id])
+
+  @@map("therapist_transfer_log")
+}
+
+// ─── COMMISSIONS ─────────────────────────────────────────────────────────────
+
+model TherapistCommission {
+  id             String         @id @default(cuid())
+  therapistId    String
+  sessionId      String         @unique // one commission record per delivered session
+  commissionType CommissionType
+  rate           Decimal?       @db.Decimal(5, 2)   // set when type = PERCENTAGE
+  baseAmount     Decimal?       @db.Decimal(10, 2)  // invoice total; null when type = FIXED
+  amount         Decimal        @db.Decimal(10, 2)  // final amount owed
+  isPaid         Boolean        @default(false)
+  paidAt         DateTime?
+  paidBy         String?
+  notes          String?        @db.Text
+  createdAt      DateTime       @default(now())
+
+  therapist  Therapist @relation(fields: [therapistId], references: [id])
+  session    Session   @relation(fields: [sessionId], references: [id])
+  paidByUser User?     @relation("CommissionPaidBy", fields: [paidBy], references: [id])
+
+  @@map("therapist_commissions")
+}

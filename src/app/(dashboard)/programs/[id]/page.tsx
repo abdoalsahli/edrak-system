@@ -1,0 +1,290 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { format } from "date-fns";
+import { arSA } from "date-fns/locale";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Badge } from "@/components/ui/Badge";
+import { Modal } from "@/components/ui/Modal";
+
+const SESSION_STATUS: Record<string, { label: string; variant: "success" | "danger" | "warning" | "gray" | "default" }> = {
+  PENDING: { label: "مجدولة", variant: "warning" },
+  COMPLETED: { label: "مكتملة", variant: "success" },
+  ABSENT: { label: "غياب", variant: "danger" },
+  CANCELLED_BY_PATIENT: { label: "ألغى المريض", variant: "gray" },
+  CANCELLED_BY_CENTER: { label: "ألغى المركز", variant: "gray" },
+};
+
+const PROG_STATUS: Record<string, { label: string; variant: "success" | "danger" | "warning" | "gray" | "default" | "info" }> = {
+  ACTIVE: { label: "نشط", variant: "success" },
+  COMPLETED: { label: "مكتمل", variant: "info" },
+  EXTENDED: { label: "ممتد", variant: "warning" },
+  CANCELLED: { label: "ملغي", variant: "danger" },
+};
+
+type BillingCycleRow = {
+  id: string;
+  cycleNumber: number;
+  cycleType: string;
+  periodStart: string;
+  periodEnd: string;
+  expectedSessions: number;
+  status: string;
+  invoices: {
+    id: string; status: string;
+    totalAmount: number; paidAmount: number; issueDate: string;
+  }[];
+};
+
+type ProgramData = {
+  id: string;
+  status: string;
+  plannedSessions: number;
+  consumedSessions: number;
+  remainingSessions: number;
+  sessionsPerWeek: number;
+  startDate: string;
+  expectedEndDate: string;
+  notes: string | null;
+  cancellationReason: string | null;
+  patient:   { id: string; fullName: string };
+  therapist: { id: string; fullName: string };
+  service:   { name: string; defaultDurationMin: number };
+  sessions:  SessionRow[];
+  billingCycles: BillingCycleRow[];
+};
+
+type SessionRow = {
+  id: string;
+  status: string;
+  programSequenceNumber: number | null;
+  outcomeNotes: string | null;
+  appointments: { id: string; date: string; startTime: string; endTime: string; status: string; therapist: { fullName: string } }[];
+};
+
+export default function ProgramDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const [data, setData] = useState<ProgramData | null>(null);
+  const [cancelModal, setCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/programs/${id}`);
+    if (res.ok) setData(await res.json());
+  }, [id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function doAction(body: object) {
+    setSaving(true);
+    setError("");
+    const res = await fetch(`/api/programs/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const d = await res.json();
+      setError(d.message ?? "حدث خطأ");
+    } else {
+      load();
+    }
+    setSaving(false);
+  }
+
+  if (!data) return <div className="text-gray-400 p-8 text-center">جارٍ التحميل...</div>;
+
+  const pct = data.plannedSessions > 0 ? Math.round((data.consumedSessions / data.plannedSessions) * 100) : 0;
+  const ps = PROG_STATUS[data.status] ?? { label: data.status, variant: "gray" };
+
+  return (
+    <div className="max-w-4xl">
+      <PageHeader
+        title={data.service.name}
+        description={
+          <Link href={`/patients/${data.patient.id}`} className="text-primary-600 hover:underline">
+            {data.patient.fullName}
+          </Link>
+        }
+        action={
+          data.status === "ACTIVE" || data.status === "EXTENDED" ? (
+            <div className="flex gap-2">
+              <Link href={`/programs/${id}/extend`} className="btn-secondary text-sm">تمديد</Link>
+              <button onClick={() => doAction({ action: "complete" })} disabled={saving} className="btn-secondary text-sm">إتمام</button>
+              <button onClick={() => setCancelModal(true)} className="btn-danger text-sm">إلغاء</button>
+            </div>
+          ) : null
+        }
+      />
+
+      {/* Stats row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        {[
+          { label: "مخطط", value: data.plannedSessions },
+          { label: "مُستهلك", value: data.consumedSessions },
+          { label: "متبقي", value: data.remainingSessions },
+          { label: "التقدم", value: `${pct}%` },
+        ].map((s) => (
+          <div key={s.label} className="card p-4 text-center">
+            <p className="text-2xl font-bold text-primary-700">{s.value}</p>
+            <p className="text-xs text-gray-500 mt-1">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Info card */}
+      <div className="card p-5 mb-6 grid grid-cols-2 gap-4 text-sm">
+        <div><span className="text-gray-500">الحالة:</span> <Badge variant={ps.variant}>{ps.label}</Badge></div>
+        <div><span className="text-gray-500">المعالج:</span> {data.therapist.fullName}</div>
+        <div><span className="text-gray-500">تاريخ البدء:</span> {format(new Date(data.startDate), "d MMM yyyy", { locale: arSA })}</div>
+        <div><span className="text-gray-500">تاريخ الانتهاء المتوقع:</span> {format(new Date(data.expectedEndDate), "d MMM yyyy", { locale: arSA })}</div>
+        <div><span className="text-gray-500">جلسات/أسبوع:</span> {data.sessionsPerWeek}</div>
+        {data.notes && <div className="col-span-2"><span className="text-gray-500">ملاحظات:</span> {data.notes}</div>}
+        {data.cancellationReason && <div className="col-span-2 text-red-600"><span className="font-medium">سبب الإلغاء:</span> {data.cancellationReason}</div>}
+      </div>
+
+      {/* Progress bar */}
+      <div className="mb-6">
+        <div className="flex justify-between text-xs text-gray-500 mb-1">
+          <span>التقدم</span>
+          <span>{data.consumedSessions} / {data.plannedSessions}</span>
+        </div>
+        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-full bg-primary-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+
+      {/* Sessions list */}
+      <div className="card">
+        <div className="p-4 border-b border-gray-100">
+          <h2 className="font-semibold text-gray-900">الجلسات ({data.sessions.length})</h2>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {data.sessions.map((s) => {
+            const apt = s.appointments[0];
+            const ss = SESSION_STATUS[s.status] ?? { label: s.status, variant: "gray" };
+            return (
+              <div key={s.id} className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-4">
+                  <span className="text-xs font-mono text-gray-400 w-6">{s.programSequenceNumber}</span>
+                  <div>
+                    <Badge variant={ss.variant}>{ss.label}</Badge>
+                    {s.outcomeNotes && <p className="text-xs text-gray-500 mt-0.5">{s.outcomeNotes}</p>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  {apt && (
+                    <span dir="ltr">
+                      {format(new Date(apt.date), "d MMM", { locale: arSA })} {apt.startTime}
+                    </span>
+                  )}
+                  <Link href={`/sessions/${s.id}`} className="text-primary-600 hover:underline text-xs">تفاصيل</Link>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
+
+      {/* ─── Billing cycles ──────────────────────────────────────── */}
+      <div className="card mt-6">
+        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900">الفوترة</h2>
+          <Link href={`/billing/new?programId=${id}`} className="text-xs text-primary-600 hover:underline">
+            + دورة فوترة جديدة
+          </Link>
+        </div>
+        {(!data.billingCycles || data.billingCycles.length === 0) ? (
+          <div className="p-6 text-center text-sm text-gray-400">
+            لا توجد دورات فوترة — انقر &quot;+ دورة فوترة جديدة&quot; للبدء
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {data.billingCycles.map(cycle => {
+              const cycleTotal = cycle.invoices.reduce((s, i) => s + Number(i.totalAmount), 0);
+              const cyclePaid  = cycle.invoices.reduce((s, i) => s + Number(i.paidAmount), 0);
+              const CYCLE_STATUS: Record<string, string> = { OPEN: "مفتوحة", INVOICED: "مُفوترة", CLOSED: "مغلقة" };
+              return (
+                <div key={cycle.id} className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <span className="font-medium text-sm">دورة {cycle.cycleNumber}</span>
+                      <span className="text-xs text-gray-500 mx-2" dir="ltr">
+                        {format(new Date(cycle.periodStart), "d MMM", { locale: arSA })} –{" "}
+                        {format(new Date(cycle.periodEnd),   "d MMM yyyy", { locale: arSA })}
+                      </span>
+                      <span className="text-xs text-gray-400">({cycle.expectedSessions} جلسة مخططة)</span>
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      cycle.status === "CLOSED" ? "bg-green-100 text-green-700" :
+                      cycle.status === "INVOICED" ? "bg-blue-100 text-blue-700" :
+                      "bg-yellow-100 text-yellow-700"
+                    }`}>{CYCLE_STATUS[cycle.status] ?? cycle.status}</span>
+                  </div>
+                  {cycle.invoices.length === 0 ? (
+                    <p className="text-xs text-gray-400 mt-1">لا توجد فواتير لهذه الدورة</p>
+                  ) : (
+                    <div className="space-y-1 mt-2">
+                      {cycle.invoices.map(inv => (
+                        <div key={inv.id} className="flex items-center justify-between text-xs bg-gray-50 rounded px-3 py-2">
+                          <Link href={`/billing/${inv.id}`} className="text-primary-600 hover:underline">
+                            فاتورة — {format(new Date(inv.issueDate), "d MMM yyyy", { locale: arSA })}
+                          </Link>
+                          <div className="flex items-center gap-3" dir="ltr">
+                            <span className="text-gray-500">
+                              {new Intl.NumberFormat("ar-SA", { style: "currency", currency: "SAR" }).format(Number(inv.paidAmount))}
+                              {" / "}
+                              {new Intl.NumberFormat("ar-SA", { style: "currency", currency: "SAR" }).format(Number(inv.totalAmount))}
+                            </span>
+                            <span className={`px-1.5 py-0.5 rounded ${
+                              inv.status === "PAID" ? "bg-green-100 text-green-700" :
+                              inv.status === "PARTIAL" ? "bg-yellow-100 text-yellow-700" :
+                              "bg-gray-100 text-gray-600"
+                            }`}>
+                              {{ DRAFT:"مسودة", ISSUED:"صادرة", PARTIAL:"جزئي", PAID:"مدفوع", VOID:"ملغي" }[inv.status] ?? inv.status}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex justify-between text-xs font-medium px-3 pt-1 text-gray-600">
+                        <span>الإجمالي</span>
+                        <span dir="ltr">
+                          {new Intl.NumberFormat("ar-SA", { style: "currency", currency: "SAR" }).format(cyclePaid)}
+                          {" / "}
+                          {new Intl.NumberFormat("ar-SA", { style: "currency", currency: "SAR" }).format(cycleTotal)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Cancel Modal */}
+      <Modal open={cancelModal} onClose={() => setCancelModal(false)} title="إلغاء البرنامج">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">هل أنت متأكد من إلغاء هذا البرنامج؟ لا يمكن التراجع.</p>
+          <div>
+            <label className="label">سبب الإلغاء (اختياري)</label>
+            <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} rows={2} className="input" />
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex gap-3">
+            <button onClick={() => { doAction({ action: "cancel", reason: cancelReason }); setCancelModal(false); }} disabled={saving} className="btn-danger">تأكيد الإلغاء</button>
+            <button onClick={() => setCancelModal(false)} className="btn-secondary">تراجع</button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}

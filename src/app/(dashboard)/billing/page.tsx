@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getAccountBalances } from "@/lib/billing/TreasuryService";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -41,6 +42,8 @@ export default async function BillingPage({ searchParams }: { searchParams: { pa
       include: {
         patient: { select: { id: true, fullName: true } },
         billingCycle: { select: { cycleNumber: true, program: { select: { service: { select: { name: true } } } } } },
+        program: { select: { service: { select: { name: true } } } },
+        standaloneSession: { select: { service: { select: { name: true } } } },
         payments: { select: { amount: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -51,18 +54,16 @@ export default async function BillingPage({ searchParams }: { searchParams: { pa
   ]);
 
   // Summary stats
-  const [outstanding, collected] = await Promise.all([
-    prisma.invoice.aggregate({
-      _sum: { totalAmount: true, paidAmount: true },
-      where: { status: { in: ["ISSUED", "PARTIAL"] } },
-    }),
+  const [ledger, collected] = await Promise.all([
+    getAccountBalances(new Date()),
     prisma.payment.aggregate({
       _sum: { amount: true },
       where: { paymentDate: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } },
     }),
   ]);
 
-  const outstandingAmount = Number(outstanding._sum.totalAmount ?? 0) - Number(outstanding._sum.paidAmount ?? 0);
+  // Receipts are posted to accounts, so what is owed is read from the patient accounts
+  const outstandingAmount = ledger.totals.receivable;
   const collectedMonth = Number(collected._sum.amount ?? 0);
 
   return (
@@ -76,11 +77,11 @@ export default async function BillingPage({ searchParams }: { searchParams: { pa
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
         <div className="card p-4">
           <p className="text-xs text-gray-500">المستحق</p>
-          <p className="text-xl font-bold text-red-600 mt-1">{outstandingAmount.toLocaleString("ar-SA")} ر.س</p>
+          <p className="text-xl font-bold text-red-600 mt-1">{outstandingAmount.toLocaleString("en-US")} ر.س</p>
         </div>
         <div className="card p-4">
           <p className="text-xs text-gray-500">محصّل هذا الشهر</p>
-          <p className="text-xl font-bold text-green-600 mt-1">{collectedMonth.toLocaleString("ar-SA")} ر.س</p>
+          <p className="text-xl font-bold text-green-600 mt-1">{collectedMonth.toLocaleString("en-US")} ر.س</p>
         </div>
         <div className="card p-4">
           <p className="text-xs text-gray-500">إجمالي الفواتير</p>
@@ -114,7 +115,6 @@ export default async function BillingPage({ searchParams }: { searchParams: { pa
                 <Th>المريض</Th>
                 <Th>الخدمة</Th>
                 <Th>المبلغ</Th>
-                <Th>المدفوع</Th>
                 <Th>تاريخ الإصدار</Th>
                 <Th>الحالة</Th>
                 <Th />
@@ -130,9 +130,14 @@ export default async function BillingPage({ searchParams }: { searchParams: { pa
                         {inv.patient.fullName}
                       </Link>
                     </Td>
-                    <Td>{inv.billingCycle?.program.service.name ?? "جلسة فردية"}</Td>
-                    <Td dir="ltr" className="text-sm">{Number(inv.totalAmount).toLocaleString("ar-SA")} ر.س</Td>
-                    <Td dir="ltr" className="text-sm">{Number(inv.paidAmount).toLocaleString("ar-SA")} ر.س</Td>
+                    <Td>
+                      {inv.program
+                        ? `برنامج — ${inv.program.service.name}`
+                        : inv.standaloneSession
+                        ? `جلسة — ${inv.standaloneSession.service.name}`
+                        : inv.billingCycle?.program.service.name ?? "فاتورة يدوية"}
+                    </Td>
+                    <Td dir="ltr" className="text-sm">{Number(inv.totalAmount).toLocaleString("en-US")} ر.س</Td>
                     <Td>{format(new Date(inv.issueDate), "d MMM yyyy", { locale: arSA })}</Td>
                     <Td><Badge variant={st.variant}>{st.label}</Badge></Td>
                     <Td>

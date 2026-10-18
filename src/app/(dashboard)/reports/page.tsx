@@ -22,6 +22,13 @@ export default async function ReportsPage({
   const from = new Date(searchParams.from ?? defaultFrom);
   const to = new Date(searchParams.to ?? defaultTo);
   const report = searchParams.report ?? "billing";
+  // Financial reports moved under المالية
+  if (report === "balances" || report === "treasury") {
+    const qs = new URLSearchParams();
+    if (searchParams.from) qs.set("from", searchParams.from);
+    if (searchParams.to) qs.set("to", searchParams.to);
+    redirect(`/finance/reports/${report}${qs.toString() ? `?${qs}` : ""}`);
+  }
 
   let content: React.ReactNode = null;
 
@@ -29,9 +36,11 @@ export default async function ReportsPage({
     const payments = await prisma.payment.findMany({
       where: { paymentDate: { gte: from, lte: to } },
       include: {
+        account: { select: { name: true } },
+        patient: { select: { fullName: true } },
+        paymentMethod: { select: { name: true } },
         invoice: {
           include: {
-            patient: { select: { fullName: true } },
             billingCycle: { select: { program: { select: { service: { select: { name: true } } } } } },
           },
         },
@@ -42,23 +51,21 @@ export default async function ReportsPage({
     const totalCollected = payments.reduce((s, p) => s + Number(p.amount), 0);
 
     const methodTotals = payments.reduce<Record<string, number>>((acc, p) => {
-      acc[p.method] = (acc[p.method] ?? 0) + Number(p.amount);
+      acc[p.paymentMethod.name] = (acc[p.paymentMethod.name] ?? 0) + Number(p.amount);
       return acc;
     }, {});
-
-    const METHOD_AR: Record<string, string> = { CASH: "نقداً", CARD: "بطاقة", BANK_TRANSFER: "تحويل بنكي", INSURANCE: "تأمين" };
 
     content = (
       <div className="space-y-6">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="card p-4">
             <p className="text-xs text-gray-500">إجمالي المحصّل</p>
-            <p className="text-xl font-bold text-green-700 mt-1">{totalCollected.toLocaleString("ar-SA")} ر.س</p>
+            <p className="text-xl font-bold text-green-700 mt-1">{totalCollected.toLocaleString("en-US")} ر.س</p>
           </div>
           {Object.entries(methodTotals).map(([m, v]) => (
             <div key={m} className="card p-4">
-              <p className="text-xs text-gray-500">{METHOD_AR[m] ?? m}</p>
-              <p className="text-xl font-bold text-primary-700 mt-1">{v.toLocaleString("ar-SA")} ر.س</p>
+              <p className="text-xs text-gray-500">{m}</p>
+              <p className="text-xl font-bold text-primary-700 mt-1">{v.toLocaleString("en-US")} ر.س</p>
             </div>
           ))}
         </div>
@@ -68,8 +75,8 @@ export default async function ReportsPage({
             <Thead>
               <tr>
                 <Th>التاريخ</Th>
-                <Th>المريض</Th>
-                <Th>الخدمة</Th>
+                <Th>السند</Th>
+                <Th>الحساب</Th>
                 <Th>الطريقة</Th>
                 <Th>المبلغ</Th>
               </tr>
@@ -78,9 +85,9 @@ export default async function ReportsPage({
               {payments.map((p) => (
                 <Tr key={p.id}>
                   <Td>{format(new Date(p.paymentDate), "d MMM yyyy", { locale: arSA })}</Td>
-                  <Td>{p.invoice.patient.fullName}</Td>
-                  <Td>{p.invoice.billingCycle?.program.service.name ?? "جلسة فردية"}</Td>
-                  <Td>{METHOD_AR[p.method] ?? p.method}</Td>
+                  <Td><span className="font-mono text-xs" dir="ltr">{p.voucherNumber}</span></Td>
+                  <Td>{p.account?.name ?? p.patient?.fullName ?? "—"}</Td>
+                  <Td>{p.paymentMethod.name}</Td>
                   <Td dir="ltr">{Number(p.amount).toFixed(2)} ر.س</Td>
                 </Tr>
               ))}

@@ -1,6 +1,10 @@
 "use client";
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
+
+// Modals can stack (e.g. «مريض جديد» over «جلسة جديدة»): unlock scrolling only when the last one closes
+let openCount = 0;
 
 export function Modal({
   open,
@@ -16,12 +20,13 @@ export function Modal({
   size?: "sm" | "md" | "lg" | "xl";
 }) {
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => { document.body.style.overflow = ""; };
+    if (!open) return;
+    openCount++;
+    document.body.style.overflow = "hidden";
+    return () => {
+      openCount = Math.max(0, openCount - 1);
+      if (openCount === 0) document.body.style.overflow = "";
+    };
   }, [open]);
 
   if (!open) return null;
@@ -33,7 +38,8 @@ export function Modal({
     xl: "max-w-4xl",
   };
 
-  return (
+  // Rendered at <body> so a modal opened from inside another form never nests <form>s
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/40"
@@ -54,8 +60,9 @@ export function Modal({
             ✕
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="p-5 max-h-[calc(100vh-8rem)] overflow-y-auto">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

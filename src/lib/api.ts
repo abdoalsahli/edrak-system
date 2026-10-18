@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import type { UserRole } from "@prisma/client";
 
 export function unauthorized() {
@@ -24,14 +25,24 @@ export function ok(data: unknown, status = 200) {
 
 export type AuthResult = { id: string; role: UserRole };
 
+/** Centre staff. A therapist account is never staff: it reaches only routes that name THERAPIST. */
+export const STAFF_ROLES: UserRole[] = ["RECEPTIONIST", "MANAGER", "ACCOUNTANT"];
+
 // Returns user data on success, or a NextResponse error on failure.
 // Callers do: const auth = await requireAuth(); if (auth instanceof NextResponse) return auth;
-export async function requireAuth(allowedRoles?: UserRole[]): Promise<AuthResult | NextResponse> {
+// With no roles given, any STAFF member passes — safe by default for the therapist portal.
+export async function requireAuth(allowedRoles: UserRole[] = STAFF_ROLES): Promise<AuthResult | NextResponse> {
   const session = await auth();
   if (!session?.user) return unauthorized();
   const user = session.user as { id: string; role: UserRole };
-  if (allowedRoles && !allowedRoles.includes(user.role)) return forbidden();
+  if (!allowedRoles.includes(user.role)) return forbidden();
   return { id: user.id, role: user.role };
+}
+
+/** The therapist record behind a THERAPIST login (null when the account is not linked). */
+export async function therapistIdOf(userId: string): Promise<string | null> {
+  const t = await prisma.therapist.findUnique({ where: { userId }, select: { id: true, isActive: true } });
+  return t?.isActive ? t.id : null;
 }
 
 export function paginate(searchParams: URLSearchParams, defaultPerPage = 20) {

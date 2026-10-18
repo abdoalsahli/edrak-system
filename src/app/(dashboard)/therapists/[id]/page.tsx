@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { TherapistLoginCard } from "@/components/therapists/TherapistLoginCard";
 import { Badge } from "@/components/ui/Badge";
 
 const DAYS = [
@@ -96,11 +98,16 @@ export default function TherapistDetailPage() {
       <PageHeader
         title={therapist.fullName}
         action={
-          <button onClick={toggleActive} className={therapist.isActive ? "btn-secondary" : "btn-primary"}>
-            {therapist.isActive ? "إلغاء التفعيل" : "تفعيل"}
-          </button>
+          <div className="flex gap-2">
+            <Link href={`/therapists/${id}/account`} className="btn-primary">💰 حساب الأخصائي</Link>
+            <button onClick={toggleActive} className={therapist.isActive ? "btn-secondary" : "btn-primary"}>
+              {therapist.isActive ? "إلغاء التفعيل" : "تفعيل"}
+            </button>
+          </div>
         }
       />
+
+      <TherapistLoginCard therapistId={id} />
 
       <form onSubmit={handleSave} className="space-y-6">
         <div className="card p-5">

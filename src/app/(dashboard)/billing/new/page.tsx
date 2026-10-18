@@ -1,5 +1,6 @@
 "use client";
 
+import { readApiError } from "@/lib/apiError";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -46,8 +47,7 @@ export default function NewInvoicePage() {
       body: JSON.stringify({ patientId, lines, notes }),
     });
     if (!res.ok) {
-      const d = await res.json();
-      setError(d.message ?? JSON.stringify(d));
+      setError(await readApiError(res));
       setSaving(false);
       return;
     }

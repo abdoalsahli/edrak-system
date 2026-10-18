@@ -42,16 +42,27 @@ async function main() {
     },
   });
 
-  // ── Center Hours (Sun–Thu open, Fri–Sat closed) ───────────────────────────
-  const hours = [
-    { dayOfWeek: 0, isOpen: true,  openTime: "08:00", closeTime: "17:00" }, // Sunday
-    { dayOfWeek: 1, isOpen: true,  openTime: "08:00", closeTime: "17:00" }, // Monday
-    { dayOfWeek: 2, isOpen: true,  openTime: "08:00", closeTime: "17:00" }, // Tuesday
-    { dayOfWeek: 3, isOpen: true,  openTime: "08:00", closeTime: "17:00" }, // Wednesday
-    { dayOfWeek: 4, isOpen: true,  openTime: "08:00", closeTime: "17:00" }, // Thursday
-    { dayOfWeek: 5, isOpen: false, openTime: "00:00", closeTime: "00:00" }, // Friday
-    { dayOfWeek: 6, isOpen: false, openTime: "00:00", closeTime: "00:00" }, // Saturday
-  ];
+  // ── Therapist portal login (demo) — linked to the first therapist, if any ──
+  const firstTherapist = await prisma.therapist.findFirst({ where: { userId: null }, orderBy: { createdAt: "asc" } });
+  if (firstTherapist && !(await prisma.user.findUnique({ where: { email: "therapist@edrak.com" } }))) {
+    const login = await prisma.user.create({
+      data: {
+        name: firstTherapist.fullName,
+        email: "therapist@edrak.com",
+        password: await bcrypt.hash("therapist123", 10),
+        role: UserRole.THERAPIST,
+      },
+    });
+    await prisma.therapist.update({ where: { id: firstTherapist.id }, data: { userId: login.id } });
+  }
+
+  // ── Center Hours (open every day, around the clock) ───────────────────────
+  const hours = [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({
+    dayOfWeek,
+    isOpen: true,
+    openTime: "00:00",
+    closeTime: "23:59",
+  }));
 
   for (const h of hours) {
     await prisma.centerHours.upsert({
@@ -68,12 +79,14 @@ async function main() {
       description: "جلسة تقييم أولية لتحديد احتياجات المريض",
       deliveryType: ServiceDeliveryType.SINGLE_SESSION,
       defaultDurationMin: 60,
+      defaultPrice: 300,
     },
     {
       name: "استشارة",
       description: "جلسة استشارة مع أخصائي",
       deliveryType: ServiceDeliveryType.SINGLE_SESSION,
       defaultDurationMin: 45,
+      defaultPrice: 250,
     },
     {
       name: "علاج النطق",
@@ -84,6 +97,7 @@ async function main() {
       defaultDurationMin: 60,
       defaultBillingCycleType: BillingCycleType.MONTHLY,
       defaultBillingCycleValue: 1,
+      defaultPrice: 200,
     },
     {
       name: "العلاج الوظيفي",
@@ -94,6 +108,7 @@ async function main() {
       defaultDurationMin: 60,
       defaultBillingCycleType: BillingCycleType.MONTHLY,
       defaultBillingCycleValue: 1,
+      defaultPrice: 200,
     },
     {
       name: "تحليل السلوك التطبيقي (ABA)",
@@ -104,6 +119,7 @@ async function main() {
       defaultDurationMin: 60,
       defaultBillingCycleType: BillingCycleType.MONTHLY,
       defaultBillingCycleValue: 1,
+      defaultPrice: 180,
     },
     {
       name: "الإرشاد النفسي",
@@ -114,6 +130,7 @@ async function main() {
       defaultDurationMin: 50,
       defaultBillingCycleType: BillingCycleType.MONTHLY,
       defaultBillingCycleValue: 1,
+      defaultPrice: 220,
     },
     {
       name: "تأهيل الإدمان",
@@ -124,6 +141,7 @@ async function main() {
       defaultDurationMin: 60,
       defaultBillingCycleType: BillingCycleType.MONTHLY,
       defaultBillingCycleValue: 1,
+      defaultPrice: 250,
     },
   ];
 

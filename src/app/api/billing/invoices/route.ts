@@ -3,17 +3,18 @@ import { requireAuth, ok, badRequest, paginate } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { addDays } from "date-fns";
+import { syncInvoiceLedger } from "@/lib/ledger/LedgerService";
 
 const CreateSchema = z.object({
   patientId: z.string(),
   billingCycleId: z.string().optional(),
   lines: z.array(z.object({
     sessionId: z.string().optional(),
-    description: z.string(),
-    qty: z.number().default(1),
-    unitPrice: z.number(),
-    discount: z.number().default(0),
-  })),
+    description: z.string().min(1, "وصف البند مطلوب"),
+    qty: z.number().int().min(1).default(1),
+    unitPrice: z.number().min(0),
+    discount: z.number().min(0).default(0),
+  })).min(1, "يجب إضافة بند واحد على الأقل"),
   dueInDays: z.number().default(30),
   notes: z.string().optional(),
 });
@@ -38,8 +39,10 @@ export async function GET(req: Request) {
       include: {
         patient: { select: { fullName: true } },
         billingCycle: { select: { cycleNumber: true, program: { select: { service: { select: { name: true } } } } } },
+        program: { select: { id: true, service: { select: { name: true } } } },
+        standaloneSession: { select: { id: true, service: { select: { name: true } } } },
         lines: true,
-        payments: { select: { id: true, amount: true, paymentDate: true, method: true } },
+        payments: { select: { id: true, amount: true, paymentDate: true, paymentMethod: { select: { name: true } } } },
       },
       orderBy: { createdAt: "desc" },
       skip,
@@ -92,6 +95,9 @@ export async function POST(req: Request) {
     if (d.billingCycleId) {
       await tx.billingCycle.update({ where: { id: d.billingCycleId }, data: { status: "INVOICED" } });
     }
+
+    // Debit the patient's current account
+    await syncInvoiceLedger(tx, inv.id);
 
     return inv;
   });

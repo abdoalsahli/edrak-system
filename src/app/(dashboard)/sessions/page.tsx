@@ -1,5 +1,8 @@
 "use client";
 
+import { readApiError } from "@/lib/apiError";
+import { PaymentMethodField } from "@/components/finance/PaymentMethodField";
+import { NewPatientModal } from "@/components/patients/NewPatientModal";
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   format, addDays, addWeeks, addMonths,
@@ -38,7 +41,7 @@ type Appointment = {
   isMakeup: boolean;
   session: {
     id: string;
-    patient: { id: string; fullName: string };
+    patient: { id: string; fullName: string; patientType: "ADULT" | "CHILD" };
     service: { name: string };
     program: { id: string } | null;
   };
@@ -47,7 +50,7 @@ type Appointment = {
 };
 
 type Patient   = { id: string; fullName: string };
-type Service   = { id: string; name: string; defaultDurationMin: number };
+type Service   = { id: string; name: string; defaultDurationMin: number; defaultPrice?: number | null };
 type Therapist = { id: string; fullName: string };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -111,6 +114,12 @@ function CreateSessionModal({
 
   const [patientId,   setPatientId]   = useState("");
   const [serviceId,   setServiceId]   = useState("");
+  const [price,       setPrice]       = useState<number | "">("");
+  // Receipt taken at booking time
+  const [collectNow,  setCollectNow]  = useState(false);
+  const [payAmount,   setPayAmount]   = useState<number | "">("");
+  const [payMethod,   setPayMethod]   = useState(""); // payment method id
+  const [payRef,      setPayRef]      = useState("");
   const [therapistId, setTherapistId] = useState("");
   const [date,        setDate]        = useState(prefillDate);
   const [startTime,   setStartTime]   = useState(prefillTime);
@@ -118,6 +127,7 @@ function CreateSessionModal({
   const [notes,       setNotes]       = useState("");
   const [saving,      setSaving]      = useState(false);
   const [error,       setError]       = useState("");
+  const [addingPatient, setAddingPatient] = useState(false);
 
   // Sync prefills when modal opens
   useEffect(() => { if (open) { setDate(prefillDate); setStartTime(prefillTime); setError(""); } }, [open, prefillDate, prefillTime]);
@@ -136,25 +146,33 @@ function CreateSessionModal({
   }, [open]);
 
   const endTime = addMins(startTime, durationMin);
+  const remainingAfterPay = Math.max(0, (Number(price) || 0) - (collectNow ? Number(payAmount) || 0 : 0));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (collectNow && Number(payAmount) > 0 && !payMethod) { setError("اختر طريقة الدفع"); return; }
     setSaving(true); setError("");
     const res = await fetch("/api/sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patientId, serviceId, therapistId, date, startTime, endTime }),
+      body: JSON.stringify({
+        patientId, serviceId, therapistId, date, startTime, endTime,
+        price: Number(price) || 0,
+        payment: collectNow && Number(payAmount) > 0
+          ? { amount: Number(payAmount), paymentMethodId: payMethod, referenceNumber: payRef || undefined }
+          : undefined,
+      }),
     });
     if (!res.ok) {
-      const d = await res.json();
-      setError(d.error?.message ?? JSON.stringify(d.error));
+      setError(await readApiError(res));
       setSaving(false); return;
     }
     setSaving(false);
     onCreated();
     onClose();
     // reset
-    setPatientId(""); setServiceId(""); setTherapistId(""); setNotes("");
+    setPatientId(""); setServiceId(""); setTherapistId(""); setNotes(""); setPrice("");
+    setCollectNow(false); setPayAmount(""); setPayRef("");
   }
 
   return (
@@ -162,7 +180,12 @@ function CreateSessionModal({
       <form onSubmit={handleSubmit} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <label className="label">المريض <span className="text-red-500">*</span></label>
+<div className="flex items-center justify-between">
+              <label className="label">المريض <span className="text-red-500">*</span></label>
+              <button type="button" onClick={() => setAddingPatient(true)} className="text-xs text-primary-600 hover:underline mb-1">
+                + مريض جديد
+              </button>
+            </div>
             <select required value={patientId} onChange={e => setPatientId(e.target.value)} className="input">
               <option value="">— اختر مريضاً —</option>
               {patients.map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
@@ -173,7 +196,12 @@ function CreateSessionModal({
             <select required value={serviceId} onChange={e => {
               setServiceId(e.target.value);
               const svc = services.find(x => x.id === e.target.value);
-              if (svc) setDurationMin(svc.defaultDurationMin);
+              if (svc) {
+                setDurationMin(svc.defaultDurationMin);
+                const p = svc.defaultPrice != null ? Number(svc.defaultPrice) : "";
+                setPrice(p);
+                if (collectNow) setPayAmount(p);
+              }
             }} className="input">
               <option value="">— اختر —</option>
               {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -202,6 +230,80 @@ function CreateSessionModal({
             <label className="label">وقت الانتهاء</label>
             <input readOnly value={endTime} className="input bg-gray-50" dir="ltr" />
           </div>
+          <div>
+            <label className="label">قيمة الجلسة (ر.س) <span className="text-red-500">*</span></label>
+            <input
+              required
+              type="number"
+              min={0}
+              step="0.01"
+              value={price}
+              onChange={e => setPrice(e.target.value === "" ? "" : parseFloat(e.target.value))}
+              className="input"
+              dir="ltr"
+              placeholder="مثال: 300"
+            />
+          </div>
+        </div>
+
+        {/* ── Receipt taken now ─────────────────────────────────────── */}
+        <div className="border border-gray-200 rounded-xl p-3 bg-gray-50/60">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={collectNow}
+              onChange={e => {
+                setCollectNow(e.target.checked);
+                if (e.target.checked && payAmount === "") setPayAmount(price);
+              }}
+              className="w-4 h-4 accent-primary-600"
+            />
+            <span className="text-sm font-medium text-gray-800">تسجيل إيصال قبض الآن</span>
+          </label>
+
+          {collectNow && (
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div>
+                <label className="label text-xs">المبلغ المقبوض</label>
+                <input
+                  type="number"
+                  min={0.01}
+                  step="0.01"
+                  max={Number(price) || undefined}
+                  value={payAmount}
+                  onChange={e => setPayAmount(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                  className="input text-sm"
+                  dir="ltr"
+                />
+              </div>
+              <PaymentMethodField value={payMethod} onChange={setPayMethod} small />
+              <div>
+                <label className="label text-xs">رقم المرجع</label>
+                <input
+                  value={payRef}
+                  onChange={e => setPayRef(e.target.value)}
+                  className="input text-sm"
+                  dir="ltr"
+                  placeholder="اختياري"
+                />
+              </div>
+
+              <div className="col-span-2 flex items-center justify-between text-xs pt-1">
+                <button
+                  type="button"
+                  onClick={() => setPayAmount(price)}
+                  className="text-primary-600 hover:underline"
+                >
+                  قبض القيمة كاملة
+                </button>
+                <span className={remainingAfterPay > 0 ? "text-amber-700" : "text-green-700"}>
+                  {remainingAfterPay > 0
+                    ? `المتبقي على المريض: ${remainingAfterPay.toFixed(2)} ر.س`
+                    : "✓ مسدّدة بالكامل"}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
         <div>
           <label className="label">ملاحظات</label>
@@ -213,6 +315,14 @@ function CreateSessionModal({
           <button type="button" onClick={onClose} className="btn-secondary">إلغاء</button>
         </div>
       </form>
+      <NewPatientModal
+        open={addingPatient}
+        onClose={() => setAddingPatient(false)}
+        onCreated={(p) => {
+          setPatients((list) => [...list, { id: p.id, fullName: p.fullName }]);
+          setPatientId(p.id);
+        }}
+      />
     </Modal>
   );
 }
@@ -289,7 +399,7 @@ function TimeGrid({
           {days.map(day => (
             <div
               key={day.toISOString()}
-              className="flex-1 border-l border-gray-100 relative cursor-pointer hover:bg-blue-50/20 transition-colors"
+              className="flex-1 border-l border-gray-100 relative cursor-pointer hover:bg-blue-50/20 transition-colors overflow-x-auto"
               style={{ height: HOURS.length * HOUR_HEIGHT }}
               onClick={e => handleCellClick(e, day)}
             >
@@ -310,20 +420,68 @@ function TimeGrid({
                 />
               ))}
 
-              {/* Appointments */}
-              {aptsByDay(day).map(apt => (
-                <div
-                  key={apt.id}
-                  className="absolute inset-x-0.5 z-10"
-                  style={{
-                    top: aptTop(apt.startTime),
-                    height: aptHeight(apt.startTime, apt.endTime),
-                  }}
-                  onClick={e => e.stopPropagation()}
-                >
-                  <AptCard apt={apt} compact={aptHeight(apt.startTime, apt.endTime) < 40} />
-                </div>
-              ))}
+              {/* Appointments — side-by-side columns for overlapping slots */}
+              {(() => {
+                const MIN_COL_PX = 110; // minimum readable width per concurrent column
+                const apts = aptsByDay(day);
+
+                // Greedy column assignment
+                const cols: (typeof apts[number])[][] = [];
+                for (const apt of apts) {
+                  let placed = false;
+                  for (const col of cols) {
+                    if (timeToMinutes(col[col.length - 1].endTime) <= timeToMinutes(apt.startTime)) {
+                      col.push(apt); placed = true; break;
+                    }
+                  }
+                  if (!placed) cols.push([apt]);
+                }
+
+                const aptCol = new Map<string, number>();
+                cols.forEach((col, ci) => col.forEach(a => aptCol.set(a.id, ci)));
+
+                // Per apt: how many columns overlap its time window
+                const aptTotal = new Map<string, number>();
+                for (const apt of apts) {
+                  const s = timeToMinutes(apt.startTime);
+                  const e = timeToMinutes(apt.endTime);
+                  let total = 0;
+                  for (const col of cols) {
+                    if (col.some(a => timeToMinutes(a.startTime) < e && timeToMinutes(a.endTime) > s)) total++;
+                  }
+                  aptTotal.set(apt.id, total);
+                }
+
+                return apts.map(apt => {
+                  const ci = aptCol.get(apt.id) ?? 0;
+                  const n  = aptTotal.get(apt.id) ?? 1;
+                  const h  = aptHeight(apt.startTime, apt.endTime);
+                  // Use percentage width, but never narrower than MIN_COL_PX
+                  const pctW = 100 / n;
+                  const widthStyle = n === 1
+                    ? "calc(100% - 2px)"
+                    : `max(${MIN_COL_PX}px, calc(${pctW}% - 2px))`;
+                  const leftStyle = n === 1
+                    ? "1px"
+                    : `max(calc(${ci} * ${MIN_COL_PX}px), calc(${ci * pctW}% + 1px))`;
+
+                  return (
+                    <div
+                      key={apt.id}
+                      className="absolute z-10"
+                      style={{
+                        top:    aptTop(apt.startTime),
+                        height: h,
+                        width:  widthStyle,
+                        left:   leftStyle,
+                      }}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <AptCard apt={apt} compact={h < 40} />
+                    </div>
+                  );
+                });
+              })()}
 
               {/* Today indicator */}
               {isSameDay(day, new Date()) && (() => {
@@ -436,6 +594,19 @@ export default function SessionsCalendarPage() {
   const [prefillDate, setPrefillDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [prefillTime, setPrefillTime] = useState("09:00");
 
+  // Filters — applied to the loaded range, so switching them is instant
+  const [therapistFilter, setTherapistFilter] = useState("");
+  const [typeFilter,      setTypeFilter]      = useState<"" | "ADULT" | "CHILD">("");
+  const [allTherapists,   setAllTherapists]   = useState<Therapist[]>([]);
+  useEffect(() => {
+    fetch("/api/therapists?take=100").then(r => (r.ok ? r.json() : null)).then(t => t && setAllTherapists(t.data ?? t));
+  }, []);
+  const visible = appointments.filter(a =>
+    (!therapistFilter || a.therapist.id === therapistFilter) &&
+    (!typeFilter || a.session.patient.patientType === typeFilter)
+  );
+  const filtered = Boolean(therapistFilter || typeFilter);
+
   // Compute visible range
   const range = useCallback(() => {
     if (view === "day") return { from: current, to: current };
@@ -493,7 +664,7 @@ export default function SessionsCalendarPage() {
     <div className="flex flex-col" style={{ height: "calc(100vh - 48px)" }}>
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 flex-shrink-0">
         <div className="flex items-center gap-2">
           <button onClick={() => setCurrent(new Date())} className="btn-secondary text-sm px-3 py-1.5">
             اليوم
@@ -508,6 +679,31 @@ export default function SessionsCalendarPage() {
           </div>
           <h2 className="text-base font-semibold text-gray-900 min-w-48">{title}</h2>
           {loading && <span className="text-xs text-gray-400">جارٍ التحميل...</span>}
+        </div>
+
+        {/* Filters */}
+        <div className="flex items-center gap-2">
+          <select value={therapistFilter} onChange={e => setTherapistFilter(e.target.value)}
+            className={`input text-sm py-1.5 w-44 ${therapistFilter ? "border-primary-400 bg-primary-50" : ""}`}>
+            <option value="">كل الأخصائيين</option>
+            {allTherapists.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}
+          </select>
+          <div className="flex border border-gray-200 rounded-lg overflow-hidden text-sm">
+            {([["", "الكل"], ["CHILD", "أطفال"], ["ADULT", "بالغون"]] as ["" | "ADULT" | "CHILD", string][]).map(([v, label]) => (
+              <button key={v} onClick={() => setTypeFilter(v)}
+                className={`px-3 py-1.5 ${typeFilter === v ? "bg-primary-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {filtered && (
+            <>
+              <span className="text-xs text-gray-500 whitespace-nowrap">{visible.length} من {appointments.length}</span>
+              <button onClick={() => { setTherapistFilter(""); setTypeFilter(""); }} className="text-xs text-primary-600 hover:underline whitespace-nowrap">
+                مسح
+              </button>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -536,14 +732,14 @@ export default function SessionsCalendarPage() {
       {(view === "day" || view === "week") && (
         <TimeGrid
           days={weekDays}
-          appointments={appointments}
+          appointments={visible}
           onSlotClick={openCreate}
         />
       )}
       {view === "month" && (
         <MonthGrid
           current={current}
-          appointments={appointments}
+          appointments={visible}
           onDayClick={date => openCreate(date)}
         />
       )}

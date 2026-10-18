@@ -13,6 +13,7 @@ enum UserRole {
   RECEPTIONIST
   MANAGER
   ACCOUNTANT
+  THERAPIST // signs in to see their own schedule and record session outcomes
 }
 
 enum PatientType {
@@ -70,13 +71,6 @@ enum InvoiceStatus {
   VOID
 }
 
-enum PaymentMethod {
-  CASH
-  CARD
-  BANK_TRANSFER
-  INSURANCE
-}
-
 // ─── AUTHENTICATION & STAFF ───────────────────────────────────────────────────
 
 model User {
@@ -89,20 +83,25 @@ model User {
   createdAt DateTime @default(now())
 
   // Auth.js required fields
-  sessions      AuthSession[]
-  accounts      Account[]
+  sessions AuthSession[]
+  accounts Account[]
+
+  // Set when role = THERAPIST
+  therapist Therapist?
 
   // Audit references
-  createdSessions          Session[]              @relation("SessionCreatedBy")
-  scheduledAppointments    Appointment[]          @relation("AppointmentScheduledBy")
-  createdPrograms          Program[]              @relation("ProgramCreatedBy")
-  issuedInvoices           Invoice[]              @relation("InvoiceIssuedBy")
-  receivedPayments         Payment[]              @relation("PaymentReceivedBy")
-  uploadedDocuments        Document[]
-  updatedSettings          SystemSetting[]
-  sessionAuditLogs         SessionAuditLog[]
-  therapistTransferLogs    TherapistTransferLog[] @relation("TransferPerformedBy")
-  paidCommissions          TherapistCommission[]  @relation("CommissionPaidBy")
+  createdSessions       Session[]              @relation("SessionCreatedBy")
+  scheduledAppointments Appointment[]          @relation("AppointmentScheduledBy")
+  createdPrograms       Program[]              @relation("ProgramCreatedBy")
+  issuedInvoices        Invoice[]              @relation("InvoiceIssuedBy")
+  receivedPayments      Payment[]              @relation("PaymentReceivedBy")
+  uploadedDocuments     Document[]
+  updatedSettings       SystemSetting[]
+  sessionAuditLogs      SessionAuditLog[]
+  therapistTransferLogs TherapistTransferLog[] @relation("TransferPerformedBy")
+  paidCommissions       TherapistCommission[]  @relation("CommissionPaidBy")
+  issuedDisbursements   Disbursement[]         @relation("DisbursementIssuedBy")
+  issuedSettlements     Settlement[]           @relation("SettlementIssuedBy")
 
   @@map("users")
 }
@@ -148,25 +147,28 @@ model VerificationToken {
 }
 
 model Therapist {
-  id             String   @id @default(cuid())
-  fullName       String
-  specialty      String?
-  phone          String?
-  isActive       Boolean  @default(true)
-  commissionType   CommissionType? // PERCENTAGE or FIXED
-  commissionRate   Decimal?        @db.Decimal(5, 2)  // used when type = PERCENTAGE (e.g. 30.00 = 30%)
-  commissionFixed  Decimal?        @db.Decimal(10, 2) // used when type = FIXED (amount per session)
-  // Reserved for future therapist portal — always null in Phase 1
-  userId    String?
-  createdAt DateTime @default(now())
+  id              String          @id @default(cuid())
+  fullName        String
+  specialty       String?
+  phone           String?
+  isActive        Boolean         @default(true)
+  commissionType  CommissionType? // PERCENTAGE or FIXED
+  commissionRate  Decimal?        @db.Decimal(5, 2) // used when type = PERCENTAGE (e.g. 30.00 = 30%)
+  commissionFixed Decimal?        @db.Decimal(10, 2) // used when type = FIXED (amount per session)
+  // Login for the therapist portal (role THERAPIST)
+  userId          String?         @unique
+  createdAt       DateTime        @default(now())
 
   availability          TherapistAvailability[]
   availabilityOverrides TherapistAvailabilityOverride[]
   programs              Program[]
   appointments          Appointment[]
   commissions           TherapistCommission[]
-  fromTransfers         TherapistTransferLog[] @relation("TransferFromTherapist")
-  toTransfers           TherapistTransferLog[] @relation("TransferToTherapist")
+  fromTransfers         TherapistTransferLog[]          @relation("TransferFromTherapist")
+  toTransfers           TherapistTransferLog[]          @relation("TransferToTherapist")
+  disbursements         Disbursement[]
+  ledgerAccount         LedgerAccount?
+  user                  User?                           @relation(fields: [userId], references: [id])
 
   @@map("therapists")
 }
@@ -174,32 +176,32 @@ model Therapist {
 // ─── CONFIGURATION ────────────────────────────────────────────────────────────
 
 model Service {
-  id                      String              @id @default(cuid())
-  name                    String
-  description             String?
-  deliveryType            ServiceDeliveryType
-  defaultSessionsPerWeek  Int?
-  defaultTotalSessions    Int?
-  defaultDurationMin      Int                 @default(60)
-  defaultBillingCycleType BillingCycleType?
+  id                       String              @id @default(cuid())
+  name                     String
+  description              String?
+  deliveryType             ServiceDeliveryType
+  defaultSessionsPerWeek   Int?
+  defaultTotalSessions     Int?
+  defaultDurationMin       Int                 @default(60)
+  defaultBillingCycleType  BillingCycleType?
   defaultBillingCycleValue Int?
-  defaultPrice            Decimal?            @db.Decimal(10, 2)
-  isActive                Boolean             @default(true)
-  createdAt               DateTime            @default(now())
+  defaultPrice             Decimal?            @db.Decimal(10, 2)
+  isActive                 Boolean             @default(true)
+  createdAt                DateTime            @default(now())
 
-  sessions  Session[]
-  programs  Program[]
+  sessions Session[]
+  programs Program[]
 
   @@map("services")
 }
 
 // center_name, center_phone, center_address, center_logo_path only
 model SystemSetting {
-  id          String   @id @default(cuid())
-  key         String   @unique
-  value       String
-  updatedBy   String
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedBy String
+  updatedAt DateTime @updatedAt
 
   updatedByUser User @relation(fields: [updatedBy], references: [id])
 
@@ -208,9 +210,9 @@ model SystemSetting {
 
 model CenterHours {
   id        String  @id @default(cuid())
-  dayOfWeek Int     // 0=Sunday … 6=Saturday
-  openTime  String  // "HH:mm"
-  closeTime String  // "HH:mm"
+  dayOfWeek Int // 0=Sunday … 6=Saturday
+  openTime  String // "HH:mm"
+  closeTime String // "HH:mm"
   isOpen    Boolean @default(true)
 
   @@unique([dayOfWeek])
@@ -236,11 +238,11 @@ model Room {
 }
 
 model TherapistAvailability {
-  id          String    @id @default(cuid())
+  id          String @id @default(cuid())
   therapistId String
-  dayOfWeek   Int       // 0=Sunday … 6=Saturday
-  startTime   String    // "HH:mm"
-  endTime     String    // "HH:mm"
+  dayOfWeek   Int // 0=Sunday … 6=Saturday
+  startTime   String // "HH:mm"
+  endTime     String // "HH:mm"
 
   therapist Therapist @relation(fields: [therapistId], references: [id])
 
@@ -253,7 +255,7 @@ model TherapistAvailabilityOverride {
   therapistId  String
   overrideDate DateTime @db.Date
   isAvailable  Boolean
-  startTime    String?  // null when isAvailable=false (fully blocked)
+  startTime    String? // null when isAvailable=false (fully blocked)
   endTime      String?
   reason       String?
 
@@ -277,12 +279,14 @@ model Patient {
   isActive    Boolean     @default(true)
   createdAt   DateTime    @default(now())
 
-  guardian  Guardian?
-  sessions  Session[]
-  programs  Program[]
-  invoices  Invoice[]
-  payments  Payment[]
-  documents Document[]
+  guardian      Guardian?
+  sessions      Session[]
+  programs      Program[]
+  invoices      Invoice[]
+  payments      Payment[]
+  documents     Document[]
+  disbursements Disbursement[]
+  ledgerAccount LedgerAccount?
 
   @@map("patients")
 }
@@ -309,20 +313,24 @@ model Session {
   programId             String?
   programSequenceNumber Int?
   status                SessionStatus @default(PENDING)
+  price                 Decimal?      @db.Decimal(10, 2) // agreed value for THIS session, entered at booking
+  isCharged             Boolean       @default(false) // absence/cancellation charged by the user's decision
+  commissionAmount      Decimal?      @db.Decimal(10, 2) // therapist commission agreed for THIS session
   outcomeNotes          String?       @db.Text
   deliveredAt           DateTime?
   createdBy             String
   createdAt             DateTime      @default(now())
 
-  patient     Patient      @relation(fields: [patientId], references: [id])
-  service     Service      @relation(fields: [serviceId], references: [id])
-  program     Program?     @relation(fields: [programId], references: [id], onDelete: Restrict)
-  createdByUser User       @relation("SessionCreatedBy", fields: [createdBy], references: [id])
-  appointments  Appointment[]
-  invoiceLines  InvoiceLine[]
-  auditLogs     SessionAuditLog[]
-  documents     Document[]
-  commission    TherapistCommission?
+  patient           Patient              @relation(fields: [patientId], references: [id])
+  service           Service              @relation(fields: [serviceId], references: [id])
+  program           Program?             @relation(fields: [programId], references: [id], onDelete: Restrict)
+  createdByUser     User                 @relation("SessionCreatedBy", fields: [createdBy], references: [id])
+  appointments      Appointment[]
+  invoiceLines      InvoiceLine[]
+  auditLogs         SessionAuditLog[]
+  documents         Document[]
+  commission        TherapistCommission?
+  standaloneInvoice Invoice?             @relation("StandaloneInvoice")
 
   @@unique([programId, programSequenceNumber])
   @@index([patientId])
@@ -333,31 +341,31 @@ model Session {
 // ─── APPOINTMENTS (Calendar Slot — Mutable) ───────────────────────────────────
 
 model Appointment {
-  id                   String            @id @default(cuid())
-  sessionId            String
-  therapistId          String
-  roomId               String?
-  date                 DateTime          @db.Date
-  startTime            String            // "HH:mm"
-  endTime              String            // "HH:mm"
-  status               AppointmentStatus @default(SCHEDULED)
+  id                    String            @id @default(cuid())
+  sessionId             String
+  therapistId           String
+  roomId                String?
+  date                  DateTime          @db.Date
+  startTime             String // "HH:mm"
+  endTime               String // "HH:mm"
+  status                AppointmentStatus @default(SCHEDULED)
   // Rescheduling: cancel old + create new with originalAppointmentId pointing to cancelled
-  isMakeup             Boolean           @default(false)
+  isMakeup              Boolean           @default(false)
   originalAppointmentId String?
-  isInsuranceCovered   Boolean           @default(false)
-  insuranceProviderId  String?
-  insuranceClaimRef    String?
-  scheduledBy          String
-  createdAt            DateTime          @default(now())
-  deletedAt            DateTime?
+  isInsuranceCovered    Boolean           @default(false)
+  insuranceProviderId   String?
+  insuranceClaimRef     String?
+  scheduledBy           String
+  createdAt             DateTime          @default(now())
+  deletedAt             DateTime?
 
-  session             Session              @relation(fields: [sessionId], references: [id], onDelete: Restrict)
-  therapist           Therapist            @relation(fields: [therapistId], references: [id])
-  room                Room?                @relation(fields: [roomId], references: [id])
-  scheduledByUser     User                 @relation("AppointmentScheduledBy", fields: [scheduledBy], references: [id])
-  insuranceProvider   InsuranceProvider?   @relation(fields: [insuranceProviderId], references: [id])
-  originalAppointment Appointment?         @relation("AppointmentReschedule", fields: [originalAppointmentId], references: [id])
-  replacements        Appointment[]        @relation("AppointmentReschedule")
+  session             Session            @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  therapist           Therapist          @relation(fields: [therapistId], references: [id])
+  room                Room?              @relation(fields: [roomId], references: [id])
+  scheduledByUser     User               @relation("AppointmentScheduledBy", fields: [scheduledBy], references: [id])
+  insuranceProvider   InsuranceProvider? @relation(fields: [insuranceProviderId], references: [id])
+  originalAppointment Appointment?       @relation("AppointmentReschedule", fields: [originalAppointmentId], references: [id])
+  replacements        Appointment[]      @relation("AppointmentReschedule")
 
   @@index([date, status])
   @@index([therapistId, date])
@@ -367,28 +375,31 @@ model Appointment {
 // ─── PROGRAMS ─────────────────────────────────────────────────────────────────
 
 model Program {
-  id                     String        @id @default(cuid())
-  patientId              String
-  therapistId            String
-  serviceId              String
-  startDate              DateTime      @db.Date
-  expectedEndDate        DateTime      @db.Date
-  sessionsPerWeek        Int
+  id                      String        @id @default(cuid())
+  patientId               String
+  therapistId             String
+  serviceId               String
+  startDate               DateTime      @db.Date
+  expectedEndDate         DateTime      @db.Date
+  sessionsPerWeek         Int
   originalPlannedSessions Int
-  plannedSessions        Int
-  status                 ProgramStatus @default(ACTIVE)
-  cancellationReason     String?
-  notes                  String?       @db.Text
-  createdBy              String
-  createdAt              DateTime      @default(now())
+  plannedSessions         Int
+  sessionPrice            Decimal?      @db.Decimal(10, 2) // agreed price per session for this program
+  sessionCommission       Decimal?      @db.Decimal(10, 2) // agreed therapist commission per session
+  status                  ProgramStatus @default(ACTIVE)
+  cancellationReason      String?
+  notes                   String?       @db.Text
+  createdBy               String
+  createdAt               DateTime      @default(now())
 
-  patient       Patient        @relation(fields: [patientId], references: [id])
-  therapist     Therapist      @relation(fields: [therapistId], references: [id])
-  service       Service        @relation(fields: [serviceId], references: [id])
-  createdByUser User           @relation("ProgramCreatedBy", fields: [createdBy], references: [id])
+  patient       Patient                @relation(fields: [patientId], references: [id])
+  therapist     Therapist              @relation(fields: [therapistId], references: [id])
+  service       Service                @relation(fields: [serviceId], references: [id])
+  createdByUser User                   @relation("ProgramCreatedBy", fields: [createdBy], references: [id])
   sessions      Session[]
   billingCycles BillingCycle[]
   transferLogs  TherapistTransferLog[]
+  invoice       Invoice?
 
   @@index([patientId])
   @@map("programs")
@@ -429,6 +440,8 @@ model BillingCycle {
 model Invoice {
   id             String        @id @default(cuid())
   billingCycleId String?
+  programId      String?       @unique // auto-invoice for programs (one per program)
+  sessionId      String?       @unique // auto-invoice for standalone sessions
   patientId      String
   issuedBy       String
   issueDate      DateTime      @db.Date
@@ -439,11 +452,13 @@ model Invoice {
   notes          String?       @db.Text
   createdAt      DateTime      @default(now())
 
-  billingCycle BillingCycle? @relation(fields: [billingCycleId], references: [id])
-  patient      Patient       @relation(fields: [patientId], references: [id])
-  issuedByUser User          @relation("InvoiceIssuedBy", fields: [issuedBy], references: [id])
-  lines        InvoiceLine[]
-  payments     Payment[]
+  billingCycle      BillingCycle? @relation(fields: [billingCycleId], references: [id])
+  program           Program?      @relation(fields: [programId], references: [id])
+  standaloneSession Session?      @relation("StandaloneInvoice", fields: [sessionId], references: [id])
+  patient           Patient       @relation(fields: [patientId], references: [id])
+  issuedByUser      User          @relation("InvoiceIssuedBy", fields: [issuedBy], references: [id])
+  lines             InvoiceLine[]
+  payments          Payment[]
 
   @@index([patientId, status])
   @@index([status])
@@ -467,42 +482,50 @@ model InvoiceLine {
 }
 
 model Payment {
-  id              String        @id @default(cuid())
-  invoiceId       String
-  patientId       String
-  paymentDate     DateTime      @db.Date
-  amount          Decimal       @db.Decimal(10, 2)
-  method          PaymentMethod
+  id              String   @id @default(cuid())
+  voucherNumber   String   @unique // قبض-2026-00001
+  invoiceId       String? // legacy: receipts are now posted to an account, not an invoice
+  accountId       String? // the current account credited by this receipt
+  cashAccountId   String? // which drawer / bank received it
+  patientId       String?
+  paymentDate     DateTime @db.Date
+  amount          Decimal  @db.Decimal(10, 2)
+  paymentMethodId String
   referenceNumber String?
   receivedBy      String
   notes           String?
-  createdAt       DateTime      @default(now())
+  createdAt       DateTime @default(now())
 
-  invoice        Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
-  patient        Patient @relation(fields: [patientId], references: [id])
-  receivedByUser User    @relation("PaymentReceivedBy", fields: [receivedBy], references: [id])
+  invoice        Invoice?       @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  account        LedgerAccount? @relation(fields: [accountId], references: [id])
+  cashAccount    CashAccount?   @relation(fields: [cashAccountId], references: [id])
+  paymentMethod  PaymentMethod  @relation(fields: [paymentMethodId], references: [id])
+  patient        Patient?       @relation(fields: [patientId], references: [id])
+  receivedByUser User           @relation("PaymentReceivedBy", fields: [receivedBy], references: [id])
 
   @@index([invoiceId])
+  @@index([accountId])
+  @@index([paymentMethodId])
   @@map("payments")
 }
 
 // ─── DOCUMENTS ────────────────────────────────────────────────────────────────
 
 model Document {
-  id          String   @id @default(cuid())
-  patientId   String
-  programId   String?
-  sessionId   String?
-  title       String
-  filePath    String
-  fileType    String
-  uploadedBy  String
-  uploadedAt  DateTime @default(now())
-  notes       String?
+  id         String   @id @default(cuid())
+  patientId  String
+  programId  String?
+  sessionId  String?
+  title      String
+  filePath   String
+  fileType   String
+  uploadedBy String
+  uploadedAt DateTime @default(now())
+  notes      String?
 
-  patient        Patient   @relation(fields: [patientId], references: [id], onDelete: Restrict)
-  session        Session?  @relation(fields: [sessionId], references: [id])
-  uploadedByUser User      @relation(fields: [uploadedBy], references: [id])
+  patient        Patient  @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  session        Session? @relation(fields: [sessionId], references: [id])
+  uploadedByUser User     @relation(fields: [uploadedBy], references: [id])
 
   @@map("documents")
 }
@@ -526,15 +549,15 @@ model SessionAuditLog {
 }
 
 model TherapistTransferLog {
-  id               String   @id @default(cuid())
-  patientId        String
-  programId        String
-  fromTherapistId  String
-  toTherapistId    String
-  transferDate     DateTime @db.Date
-  reason           String?
-  performedBy      String
-  performedAt      DateTime @default(now())
+  id              String   @id @default(cuid())
+  patientId       String
+  programId       String
+  fromTherapistId String
+  toTherapistId   String
+  transferDate    DateTime @db.Date
+  reason          String?
+  performedBy     String
+  performedAt     DateTime @default(now())
 
   program         Program   @relation(fields: [programId], references: [id])
   fromTherapist   Therapist @relation("TransferFromTherapist", fields: [fromTherapistId], references: [id])
@@ -551,18 +574,239 @@ model TherapistCommission {
   therapistId    String
   sessionId      String         @unique // one commission record per delivered session
   commissionType CommissionType
-  rate           Decimal?       @db.Decimal(5, 2)   // set when type = PERCENTAGE
-  baseAmount     Decimal?       @db.Decimal(10, 2)  // invoice total; null when type = FIXED
-  amount         Decimal        @db.Decimal(10, 2)  // final amount owed
+  rate           Decimal?       @db.Decimal(5, 2) // set when type = PERCENTAGE
+  baseAmount     Decimal?       @db.Decimal(10, 2) // invoice total; null when type = FIXED
+  amount         Decimal        @db.Decimal(10, 2) // final amount owed
+  isEarned       Boolean        @default(false) // true once the session was actually delivered
   isPaid         Boolean        @default(false)
   paidAt         DateTime?
   paidBy         String?
+  disbursementId String? // the سند صرف that paid this commission
   notes          String?        @db.Text
   createdAt      DateTime       @default(now())
 
-  therapist  Therapist @relation(fields: [therapistId], references: [id])
-  session    Session   @relation(fields: [sessionId], references: [id])
-  paidByUser User?     @relation("CommissionPaidBy", fields: [paidBy], references: [id])
+  therapist    Therapist     @relation(fields: [therapistId], references: [id])
+  session      Session       @relation(fields: [sessionId], references: [id])
+  paidByUser   User?         @relation("CommissionPaidBy", fields: [paidBy], references: [id])
+  disbursement Disbursement? @relation(fields: [disbursementId], references: [id])
 
   @@map("therapist_commissions")
+}
+
+// ─── FINANCE: CASH ACCOUNTS, VOUCHERS & EXPENSES ──────────────────────────────
+
+enum CashAccountType {
+  CASH // صندوق نقدي
+  BANK // حساب بنكي
+}
+
+enum DisbursementType {
+  COMMISSION // عمولة أخصائي
+  REFUND // استرداد لمريض
+  EXPENSE // مصروف تشغيلي
+  SALARY // راتب
+  OTHER
+}
+
+enum ExpenseCategory {
+  RENT
+  SALARIES
+  UTILITIES
+  SUPPLIES
+  MAINTENANCE
+  MARKETING
+  GOVERNMENT
+  OTHER
+}
+
+/// A place money physically sits: a cash drawer or a bank account.
+model CashAccount {
+  id             String          @id @default(cuid())
+  name           String // "الصندوق الرئيسي" / "بنك الراجحي"
+  type           CashAccountType
+  accountNumber  String? // IBAN or bank account no.
+  openingBalance Decimal         @default(0) @db.Decimal(12, 2)
+  isActive       Boolean         @default(true)
+  notes          String?
+  createdAt      DateTime        @default(now())
+
+  receipts       Payment[]
+  disbursements  Disbursement[]
+  paymentMethods PaymentMethod[]
+  ledgerAccount  LedgerAccount?  @relation("CashLedger")
+
+  @@map("cash_accounts")
+}
+
+/// Outgoing money: سند صرف. Covers commissions, refunds, expenses and salaries.
+model Disbursement {
+  id              String           @id @default(cuid())
+  voucherNumber   String           @unique // صرف-2026-00001
+  type            DisbursementType
+  accountId       String? // the current account debited by this payment voucher
+  cashAccountId   String
+  amount          Decimal          @db.Decimal(12, 2)
+  paymentDate     DateTime         @db.Date
+  paymentMethodId String
+
+  // Optional counterparties
+  therapistId     String? // COMMISSION / SALARY
+  patientId       String? // REFUND
+  expenseCategory ExpenseCategory? // EXPENSE
+
+  description     String
+  referenceNumber String?
+  issuedBy        String
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  cashAccount   CashAccount           @relation(fields: [cashAccountId], references: [id])
+  paymentMethod PaymentMethod         @relation(fields: [paymentMethodId], references: [id])
+  account       LedgerAccount?        @relation(fields: [accountId], references: [id])
+  therapist     Therapist?            @relation(fields: [therapistId], references: [id])
+  patient       Patient?              @relation(fields: [patientId], references: [id])
+  issuedByUser  User                  @relation("DisbursementIssuedBy", fields: [issuedBy], references: [id])
+  commissions   TherapistCommission[]
+
+  @@index([cashAccountId])
+  @@index([paymentMethodId])
+  @@index([accountId])
+  @@index([paymentDate])
+  @@index([type])
+  @@map("disbursements")
+}
+
+/// طرق الدفع — user-defined; each one posts to its own cash box or bank account,
+/// so documents can be sorted by how the money moved.
+model PaymentMethod {
+  id            String   @id @default(cuid())
+  name          String   @unique // "نقداً" / "تحويل مصرفي" / "موبي كاش"
+  cashAccountId String
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  cashAccount   CashAccount    @relation(fields: [cashAccountId], references: [id])
+  payments      Payment[]
+  disbursements Disbursement[]
+
+  @@index([cashAccountId])
+  @@map("payment_methods")
+}
+
+/// Per-year sequential numbering for financial documents.
+model DocumentCounter {
+  id         String @id @default(cuid())
+  docType    String // RECEIPT | DISBURSEMENT
+  year       Int
+  lastNumber Int    @default(0)
+
+  @@unique([docType, year])
+  @@map("document_counters")
+}
+
+// ─── CURRENT ACCOUNTS (حسابات جارية) ──────────────────────────────────────────
+// Every party has one account; every financial document posts entries to it.
+// Balances and statements are read from ledger_entries only — a single source of truth.
+
+enum AccountKind {
+  PATIENT
+  THERAPIST
+  EXPENSE
+  CUSTOM
+  CASH // a cash box or bank account — nature DEBIT (an asset)
+}
+
+/// How the balance is read. DEBIT: balance = debit − credit (patients, expenses).
+/// CREDIT: balance = credit − debit (therapists and other payables).
+enum AccountNature {
+  DEBIT
+  CREDIT
+}
+
+enum LedgerSource {
+  OPENING
+  INVOICE
+  RECEIPT
+  PAYMENT
+  COMMISSION
+  SETTLEMENT
+}
+
+enum SettlementType {
+  DISCOUNT // خصم
+  WRITE_OFF // إعدام دين
+  CORRECTION // تصحيح
+  TRANSFER // تحويل بين حسابين
+  OTHER
+}
+
+model LedgerAccount {
+  id              String           @id @default(cuid())
+  code            String           @unique
+  name            String
+  kind            AccountKind
+  nature          AccountNature
+  patientId       String?          @unique
+  therapistId     String?          @unique
+  cashAccountId   String?          @unique // set when this account IS a cash box / bank
+  expenseCategory ExpenseCategory? @unique // system expense account for a category
+  isActive        Boolean          @default(true)
+  notes           String?
+  createdAt       DateTime         @default(now())
+
+  patient           Patient?       @relation(fields: [patientId], references: [id])
+  therapist         Therapist?     @relation(fields: [therapistId], references: [id])
+  cashAccount       CashAccount?   @relation("CashLedger", fields: [cashAccountId], references: [id])
+  entries           LedgerEntry[]
+  receipts          Payment[]
+  disbursements     Disbursement[]
+  settlementsDebit  Settlement[]   @relation("SettlementDebit")
+  settlementsCredit Settlement[]   @relation("SettlementCredit")
+
+  @@index([kind])
+  @@map("ledger_accounts")
+}
+
+model LedgerEntry {
+  id          String       @id @default(cuid())
+  accountId   String
+  date        DateTime     @db.Date
+  debit       Decimal      @default(0) @db.Decimal(12, 2)
+  credit      Decimal      @default(0) @db.Decimal(12, 2)
+  description String
+  sourceType  LedgerSource
+  sourceId    String // invoice / payment / disbursement / session / settlement id
+  reference   String? // voucher number shown on statements
+  createdBy   String?
+  createdAt   DateTime     @default(now())
+
+  account LedgerAccount @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, date])
+  @@index([sourceType, sourceId])
+  @@map("ledger_entries")
+}
+
+/// تسوية — a non-cash adjustment. One side only (discount, write-off, correction)
+/// or both sides (a transfer between two accounts).
+model Settlement {
+  id              String         @id @default(cuid())
+  voucherNumber   String         @unique // STL-2026-00001
+  type            SettlementType
+  date            DateTime       @db.Date
+  amount          Decimal        @db.Decimal(12, 2)
+  debitAccountId  String?
+  creditAccountId String?
+  description     String
+  notes           String?        @db.Text
+  issuedBy        String
+  createdAt       DateTime       @default(now())
+
+  debitAccount  LedgerAccount? @relation("SettlementDebit", fields: [debitAccountId], references: [id])
+  creditAccount LedgerAccount? @relation("SettlementCredit", fields: [creditAccountId], references: [id])
+  issuedByUser  User           @relation("SettlementIssuedBy", fields: [issuedBy], references: [id])
+
+  @@index([date])
+  @@map("settlements")
 }

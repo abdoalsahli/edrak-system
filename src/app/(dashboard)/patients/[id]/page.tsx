@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getBalances, naturalBalance } from "@/lib/ledger/LedgerService";
 import { auth } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
@@ -62,9 +63,14 @@ export default async function PatientProfilePage({
   const genderLabel = patient.gender === "male" ? "ذكر" : patient.gender === "female" ? "أنثى" : "—";
   const dobFormatted = patient.dob ? format(new Date(patient.dob), "d MMMM yyyy", { locale: ar }) : "—";
 
-  const totalOutstanding = patient.invoices
-    .filter((inv) => inv.status !== "PAID")
-    .reduce((sum, inv) => sum + Number(inv.totalAmount) - Number(inv.paidAmount), 0);
+  // What the patient owes = the balance of their current account
+  const ledgerAccount = await prisma.ledgerAccount.findUnique({
+    where: { patientId: patient.id },
+    select: { id: true, nature: true },
+  });
+  const sums = ledgerAccount ? await getBalances(prisma, { accountIds: [ledgerAccount.id] }) : null;
+  const t = (ledgerAccount && sums?.get(ledgerAccount.id)) || { debit: 0, credit: 0 };
+  const totalOutstanding = ledgerAccount ? naturalBalance(ledgerAccount.nature, t.debit, t.credit) : 0;
 
   return (
     <div className="max-w-5xl space-y-6">
@@ -84,9 +90,17 @@ export default async function PatientProfilePage({
             </div>
           </div>
         </div>
-        <Link href={`/patients/${patient.id}/edit`} className="btn-secondary">
-          تعديل
-        </Link>
+        <div className="flex gap-2">
+          {/* The statement is financial data — accountants and managers only */}
+          {session.user.role !== "RECEPTIONIST" && (
+            <Link href={`/patients/${patient.id}/statement`} className="btn-primary">
+              📄 كشف الحساب
+            </Link>
+          )}
+          <Link href={`/patients/${patient.id}/edit`} className="btn-secondary">
+            تعديل
+          </Link>
+        </div>
       </div>
 
       {/* Info grid */}
@@ -143,6 +157,14 @@ export default async function PatientProfilePage({
             {totalOutstanding.toFixed(2)} ر.س
           </div>
           <p className="text-sm text-gray-500 mt-1">الرصيد المستحق</p>
+          {session.user.role !== "RECEPTIONIST" && (
+            <Link
+              href={`/patients/${patient.id}/statement`}
+              className="inline-block text-sm text-primary-600 hover:underline mt-3"
+            >
+              عرض كشف الحساب التفصيلي ←
+            </Link>
+          )}
         </div>
       </div>
 

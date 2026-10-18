@@ -109,6 +109,13 @@ export default function ServicesPage() {
         action={<button onClick={openNew} className="btn-primary">+ إضافة خدمة</button>}
       />
 
+      {services.some((s) => s.isActive && !(s.defaultPrice != null && Number(s.defaultPrice) > 0)) && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-sm text-red-700">
+          ⚠️ بعض الخدمات النشطة <strong>بدون سعر</strong> — أي جلسة أو برنامج يستخدمها سيُنشئ فاتورة
+          بقيمة <strong>صفر</strong>. حدّد السعر لكل خدمة، ثم استخدم زر «↻ إعادة حساب» على الفواتير المتأثرة.
+        </div>
+      )}
+
       <div className="card">
         {services.length === 0 ? (
           <EmptyState title="لا توجد خدمات" action={<button onClick={openNew} className="btn-primary">إضافة خدمة</button>} />
@@ -118,6 +125,7 @@ export default function ServicesPage() {
               <tr>
                 <Th>الخدمة</Th>
                 <Th>النوع</Th>
+                <Th>السعر</Th>
                 <Th>مدة الجلسة</Th>
                 <Th>جلسات البرنامج</Th>
                 <Th>الحالة</Th>
@@ -135,6 +143,15 @@ export default function ServicesPage() {
                     <Badge variant={s.deliveryType === "PROGRAM" ? "info" : "gray"}>
                       {s.deliveryType === "PROGRAM" ? "برنامج" : "جلسة فردية"}
                     </Badge>
+                  </Td>
+                  <Td>
+                    {s.defaultPrice != null && Number(s.defaultPrice) > 0 ? (
+                      <span className="font-medium" dir="ltr">{Number(s.defaultPrice).toFixed(2)} ر.س</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                        ⚠️ بدون سعر
+                      </span>
+                    )}
                   </Td>
                   <Td>{s.defaultDurationMin} دقيقة</Td>
                   <Td>{s.deliveryType === "PROGRAM" ? `${s.defaultTotalSessions ?? "—"} جلسة (${s.defaultSessionsPerWeek ?? "—"}/أسبوع)` : "—"}</Td>
@@ -200,12 +217,32 @@ export default function ServicesPage() {
                     <input type="number" min={1} value={form.defaultBillingCycleValue ?? ""} onChange={(e) => set("defaultBillingCycleValue", e.target.value ? parseInt(e.target.value) : null)} className="input" />
                   </div>
                 )}
-                <div>
-                  <label className="label">السعر الافتراضي (ر.س)</label>
-                  <input type="number" min={0} step="0.01" value={form.defaultPrice ?? ""} onChange={(e) => set("defaultPrice", e.target.value ? parseFloat(e.target.value) : null)} className="input" dir="ltr" />
-                </div>
               </>
             )}
+
+            {/* Price applies to every service type — a service without a price
+                produces zero-value invoices. */}
+            <div className="col-span-2">
+              <label className="label">
+                سعر الجلسة (ر.س) <span className="text-red-500">*</span>
+              </label>
+              <input
+                required
+                type="number"
+                min={0.01}
+                step="0.01"
+                value={form.defaultPrice ?? ""}
+                onChange={(e) => set("defaultPrice", e.target.value ? parseFloat(e.target.value) : null)}
+                className="input"
+                dir="ltr"
+                placeholder="مثال: 200"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                {form.deliveryType === "PROGRAM"
+                  ? "سعر الجلسة الواحدة — تُحسب قيمة البرنامج = السعر × عدد الجلسات"
+                  : "بدون سعر لن تُصدر فاتورة بقيمة لهذه الخدمة"}
+              </p>
+            </div>
           </div>
           <div className="flex gap-3 pt-2">
             <button type="submit" disabled={saving} className="btn-primary">{saving ? "جارٍ الحفظ..." : "حفظ"}</button>

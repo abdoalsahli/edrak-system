@@ -6,7 +6,8 @@ const ALLOWED_KEYS = ["center_name", "center_phone", "center_address", "center_l
 type AllowedKey = (typeof ALLOWED_KEYS)[number];
 
 export async function GET() {
-  await requireAuth();
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
   const settings = await prisma.systemSetting.findMany({
     where: { key: { in: [...ALLOWED_KEYS] } },
     select: { key: true, value: true },

@@ -53,15 +53,15 @@ export async function GET(req: Request) {
     orderBy: { createdAt: "desc" },
   });
 
-  const totalUnpaid = commissions
-    .filter(c => !c.isPaid)
-    .reduce((s, c) => s + Number(c.amount), 0);
+  const sum = (rows: typeof commissions) => rows.reduce((t, c) => t + Number(c.amount), 0);
 
-  const totalPaid = commissions
-    .filter(c => c.isPaid)
-    .reduce((s, c) => s + Number(c.amount), 0);
+  // Earned = the session was delivered. Expected = accrued at programme creation,
+  // not yet delivered, so it cannot be paid out yet.
+  const totalUnpaid   = sum(commissions.filter((c) => c.isEarned && !c.isPaid));
+  const totalPaid     = sum(commissions.filter((c) => c.isPaid));
+  const totalExpected = sum(commissions.filter((c) => !c.isEarned && !c.isPaid));
 
-  return ok({ commissions, totalUnpaid, totalPaid });
+  return ok({ commissions, totalUnpaid, totalPaid, totalExpected });
 }
 
 export async function POST(req: Request) {

@@ -1,7 +1,8 @@
 "use client";
 
+import { readApiError } from "@/lib/apiError";
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { arSA } from "date-fns/locale";
@@ -24,6 +25,8 @@ type Appointment = {
   room?: { name: string } | null;
 };
 
+type InvoiceRef = { id: string; status: string; totalAmount: number; paidAmount: number };
+
 type InvoiceLine = {
   id: string; description: string; qty: number;
   unitPrice: number; discount: number; total: number;
@@ -44,7 +47,10 @@ type SessionData = {
   programSequenceNumber: number | null;
   patient:  { id: string; fullName: string };
   service:  { name: string };
-  program:  { id: string } | null;
+  price: number | null;
+  isCharged: boolean;
+  program:  { id: string; invoice: InvoiceRef | null } | null;
+  standaloneInvoice: InvoiceRef | null;
   appointments: Appointment[];
   invoiceLines: InvoiceLine[];
   commission:   Commission | null;
@@ -60,11 +66,14 @@ const fmt = (n: number) =>
 
 export default function SessionDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [data, setData] = useState<SessionData | null>(null);
 
   const [outcomeModal,    setOutcomeModal]    = useState(false);
   const [outcomeStatus,   setOutcomeStatus]   = useState("COMPLETED");
   const [outcomeNotes,    setOutcomeNotes]    = useState("");
+  // An absence or cancellation is never charged automatically — the user is asked
+  const [chargeAsk,       setChargeAsk]       = useState(false);
   const [rescheduleModal, setRescheduleModal] = useState(false);
   const [newDate,         setNewDate]         = useState("");
   const [newStartTime,    setNewStartTime]    = useState("09:00");
@@ -79,19 +88,55 @@ export default function SessionDetailPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function recordOutcome(e: React.FormEvent) {
+  function recordOutcome(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
+    if (outcomeStatus === "COMPLETED") submitOutcome();
+    else setChargeAsk(true);
+  }
+
+  async function submitOutcome(charge?: boolean) {
     setSaving(true); setError("");
     const res = await fetch(`/api/sessions/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: outcomeStatus, outcomeNotes }),
+      body: JSON.stringify({ status: outcomeStatus, outcomeNotes, charge }),
     });
     if (!res.ok) {
-      const d = await res.json();
-      setError(d.message ?? "حدث خطأ");
-    } else { setOutcomeModal(false); load(); }
+      setError(await readApiError(res));
+      setChargeAsk(false);
+    } else {
+      setOutcomeModal(false);
+      setChargeAsk(false);
+      load();
+    }
     setSaving(false);
+  }
+
+  async function deleteSession() {
+    if (!data) return;
+    if (!confirm("حذف هذه الجلسة نهائياً؟ سيُحذف موعدها، وفاتورتها إن لم يكن عليها دفعات.")) return;
+    const res = await fetch(`/api/sessions/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      alert(await readApiError(res, "تعذّر حذف الجلسة"));
+      return;
+    }
+    router.push(data.program ? `/programs/${data.program.id}` : "/sessions");
+  }
+
+  async function toggleCharge() {
+    if (!data) return;
+    const next = !data.isCharged;
+    if (!confirm(next ? "احتساب قيمة هذه الجلسة على المريض؟" : "إلغاء احتساب قيمة هذه الجلسة؟")) return;
+    const res = await fetch(`/api/sessions/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "setCharge", charge: next }),
+    });
+    if (!res.ok) {
+      alert(await readApiError(res, "تعذّر تغيير الاحتساب (يتطلب صلاحية المدير)"));
+    }
+    load();
   }
 
   async function reschedule(e: React.FormEvent) {
@@ -103,8 +148,7 @@ export default function SessionDetailPage() {
       body: JSON.stringify({ action: "reschedule", date: newDate, startTime: newStartTime, durationMin }),
     });
     if (!res.ok) {
-      const d = await res.json();
-      setError(d.message ?? "حدث خطأ");
+      setError(await readApiError(res));
     } else { setRescheduleModal(false); load(); }
     setSaving(false);
   }
@@ -112,8 +156,9 @@ export default function SessionDetailPage() {
   if (!data) return <div className="text-gray-400 p-8 text-center">جارٍ التحميل...</div>;
 
   const st = STATUS_MAP[data.status] ?? { label: data.status, variant: "gray" };
+  // A session is billed either through its program or its own standalone invoice
+  const invoice = data.program?.invoice ?? data.standaloneInvoice ?? null;
   const activeApt = data.appointments.find((a) => a.status !== "CANCELLED");
-  const invoiceIds = [...new Set(data.invoiceLines.map(l => l.invoice.id))];
 
   return (
     <div className="max-w-2xl space-y-4">
@@ -136,6 +181,7 @@ export default function SessionDetailPage() {
             <div className="flex gap-2">
               <button onClick={() => setOutcomeModal(true)} className="btn-primary">تسجيل النتيجة</button>
               {activeApt && <button onClick={() => setRescheduleModal(true)} className="btn-secondary">إعادة جدولة</button>}
+              <button onClick={deleteSession} className="btn-danger">حذف</button>
             </div>
           ) : null
         }
@@ -146,6 +192,24 @@ export default function SessionDetailPage() {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div><span className="text-gray-500">الحالة:</span> <Badge variant={st.variant}>{st.label}</Badge></div>
           <div><span className="text-gray-500">الخدمة:</span> {data.service.name}</div>
+          <div>
+            <span className="text-gray-500">قيمة الجلسة:</span>{" "}
+            {data.price != null && Number(data.price) > 0 ? (
+              <span className="font-medium" dir="ltr">{Number(data.price).toFixed(2)} ر.س</span>
+            ) : (
+              <span className="text-red-600 text-xs">⚠️ بدون قيمة</span>
+            )}
+            {["ABSENT", "CANCELLED_BY_PATIENT", "CANCELLED_BY_CENTER"].includes(data.status) && (
+              <span className="ms-2 inline-flex items-center gap-2">
+                <span className={`text-xs px-2 py-0.5 rounded-full ${data.isCharged ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-600"}`}>
+                  {data.isCharged ? "محتسبة على المريض" : "غير محتسبة"}
+                </span>
+                <button type="button" onClick={toggleCharge} className="text-xs text-primary-600 hover:underline">
+                  {data.isCharged ? "إلغاء الاحتساب" : "احتساب القيمة"}
+                </button>
+              </span>
+            )}
+          </div>
           <div><span className="text-gray-500">المريض:</span> <Link href={`/patients/${data.patient.id}`} className="text-primary-600 hover:underline">{data.patient.fullName}</Link></div>
           <div><span className="text-gray-500">تاريخ الإنشاء:</span> {format(parseISO(data.createdAt), "d MMM yyyy", { locale: arSA })}</div>
           {data.deliveredAt && (
@@ -194,18 +258,43 @@ export default function SessionDetailPage() {
             <Link href={`/programs/${data.program.id}`} className="text-xs text-primary-600 hover:underline">
               عرض البرنامج ←
             </Link>
-          ) : invoiceIds.length === 0 && (
+          ) : !invoice && (
             <Link href="/billing/new" className="text-xs text-primary-600 hover:underline">
               + إنشاء فاتورة
             </Link>
           )}
         </div>
 
+        {/* The auto-invoice exists from the moment the session is booked */}
+        {invoice && (
+          <Link
+            href={`/billing/${invoice.id}`}
+            className="flex items-center justify-between p-3 mb-3 rounded-lg border border-primary-200 bg-primary-50 hover:bg-primary-100 transition-colors"
+          >
+            <div>
+              <p className="text-sm font-medium text-primary-900">
+                {data.program ? "فاتورة البرنامج" : "فاتورة هذه الجلسة"}
+              </p>
+              <p className="text-xs text-primary-700 mt-0.5">
+                مدفوع {fmt(Number(invoice.paidAmount))} من {fmt(Number(invoice.totalAmount))}
+              </p>
+            </div>
+            <div className="text-left">
+              <span className="text-xs bg-white px-2 py-0.5 rounded-full border border-primary-200 text-primary-800">
+                {INV_STATUS[invoice.status] ?? invoice.status}
+              </span>
+              <p className="text-xs text-primary-600 mt-1">عرض الفاتورة ←</p>
+            </div>
+          </Link>
+        )}
+
         {data.invoiceLines.length === 0 ? (
           <p className="text-sm text-gray-400">
-            {data.program
-              ? "تُدار الفوترة عبر البرنامج ودوراته"
-              : "لا توجد فاتورة لهذه الجلسة بعد"}
+            {!invoice
+              ? "لا توجد فاتورة لهذه الجلسة بعد"
+              : data.status === "PENDING"
+              ? "يُضاف بند الفاتورة عند تسجيل الجلسة كمكتملة"
+              : "لا توجد بنود لهذه الجلسة"}
           </p>
         ) : (
           <div className="space-y-2">
@@ -231,7 +320,7 @@ export default function SessionDetailPage() {
       <div className="card p-5">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-gray-900">عمولة المعالج</h2>
-          <Link href="/commissions" className="text-xs text-primary-600 hover:underline">كل العمولات ←</Link>
+          <Link href="/finance/reports/commissions" className="text-xs text-primary-600 hover:underline">تقرير العمولات ←</Link>
         </div>
         {!data.commission ? (
           <p className="text-sm text-gray-400">
@@ -260,7 +349,30 @@ export default function SessionDetailPage() {
       </div>
 
       {/* Outcome Modal */}
-      <Modal open={outcomeModal} onClose={() => setOutcomeModal(false)} title="تسجيل نتيجة الجلسة">
+      <Modal open={outcomeModal} onClose={() => { setOutcomeModal(false); setChargeAsk(false); }} title="تسجيل نتيجة الجلسة">
+        {chargeAsk ? (
+          <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <p className="font-semibold text-amber-900">هل تريد احتساب قيمة الجلسة؟</p>
+              <p className="text-sm text-amber-800 mt-1">
+                {({ ABSENT: "غياب", CANCELLED_BY_PATIENT: "إلغاء من المريض", CANCELLED_BY_CENTER: "إلغاء من المركز" } as Record<string, string>)[outcomeStatus]}
+                {" — "}قيمة الجلسة{" "}
+                <strong dir="ltr">{Number(data.price ?? 0).toFixed(2)} ر.س</strong>
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button type="button" disabled={saving} onClick={() => submitOutcome(true)} className="btn-primary">
+                {saving ? "جارٍ الحفظ..." : "نعم، احتسب القيمة"}
+              </button>
+              <button type="button" disabled={saving} onClick={() => submitOutcome(false)} className="btn-secondary">
+                لا، لا تحتسب
+              </button>
+              <button type="button" disabled={saving} onClick={() => setChargeAsk(false)} className="text-sm text-gray-500 hover:underline">
+                رجوع
+              </button>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={recordOutcome} className="space-y-4">
           <div>
             <label className="label">النتيجة</label>
@@ -281,6 +393,7 @@ export default function SessionDetailPage() {
             <button type="button" onClick={() => setOutcomeModal(false)} className="btn-secondary">إلغاء</button>
           </div>
         </form>
+        )}
       </Modal>
 
       {/* Reschedule Modal */}

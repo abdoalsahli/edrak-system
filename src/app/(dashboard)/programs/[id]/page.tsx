@@ -1,5 +1,6 @@
 "use client";
 
+import { readApiError } from "@/lib/apiError";
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -42,6 +43,8 @@ type ProgramData = {
   id: string;
   status: string;
   plannedSessions: number;
+  sessionPrice: number | null;
+  sessionCommission: number | null;
   consumedSessions: number;
   remainingSessions: number;
   sessionsPerWeek: number;
@@ -89,8 +92,7 @@ export default function ProgramDetailPage() {
       body: JSON.stringify(body),
     });
     if (!res.ok) {
-      const d = await res.json();
-      setError(d.message ?? "حدث خطأ");
+      setError(await readApiError(res));
     } else {
       load();
     }
@@ -114,8 +116,21 @@ export default function ProgramDetailPage() {
         action={
           data.status === "ACTIVE" || data.status === "EXTENDED" ? (
             <div className="flex gap-2">
+              <Link href={`/programs/${id}/edit`} className="btn-secondary text-sm">تعديل</Link>
               <Link href={`/programs/${id}/extend`} className="btn-secondary text-sm">تمديد</Link>
-              <button onClick={() => doAction({ action: "complete" })} disabled={saving} className="btn-secondary text-sm">إتمام</button>
+              <button
+                onClick={() => {
+                  const left = data.sessions.filter((s) => s.status === "PENDING").length;
+                  const msg = left > 0
+                    ? `يوجد ${left} جلسة لم تُعقد — سيتم إلغاؤها مع مواعيدها، وتُعدَّل قيمة البرنامج والعمولة على الجلسات المنفّذة فقط. هل تريد إتمام البرنامج؟`
+                    : "هل تريد إتمام البرنامج؟";
+                  if (confirm(msg)) doAction({ action: "complete" });
+                }}
+                disabled={saving}
+                className="btn-secondary text-sm"
+              >
+                إتمام
+              </button>
               <button onClick={() => setCancelModal(true)} className="btn-danger text-sm">إلغاء</button>
             </div>
           ) : null
@@ -144,6 +159,14 @@ export default function ProgramDetailPage() {
         <div><span className="text-gray-500">تاريخ البدء:</span> {format(new Date(data.startDate), "d MMM yyyy", { locale: arSA })}</div>
         <div><span className="text-gray-500">تاريخ الانتهاء المتوقع:</span> {format(new Date(data.expectedEndDate), "d MMM yyyy", { locale: arSA })}</div>
         <div><span className="text-gray-500">جلسات/أسبوع:</span> {data.sessionsPerWeek}</div>
+        <div>
+          <span className="text-gray-500">قيمة الجلسة:</span>{" "}
+          <span className="font-medium" dir="ltr">{Number(data.sessionPrice ?? 0).toFixed(2)} ر.س</span>
+        </div>
+        <div>
+          <span className="text-gray-500">عمولة الأخصائي للجلسة:</span>{" "}
+          <span className="font-medium text-amber-700" dir="ltr">{Number(data.sessionCommission ?? 0).toFixed(2)} ر.س</span>
+        </div>
         {data.notes && <div className="col-span-2"><span className="text-gray-500">ملاحظات:</span> {data.notes}</div>}
         {data.cancellationReason && <div className="col-span-2 text-red-600"><span className="font-medium">سبب الإلغاء:</span> {data.cancellationReason}</div>}
       </div>

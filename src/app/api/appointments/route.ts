@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     include: {
       session: {
         include: {
-          patient: { select: { id: true, fullName: true } },
+          patient: { select: { id: true, fullName: true, patientType: true } },
           service: { select: { name: true } },
           program: { select: { id: true } },
         },

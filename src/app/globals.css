@@ -7,6 +7,17 @@
 @layer base {
   * {
     font-family: 'Cairo', sans-serif;
+    /* Force Western Arabic numerals (0-9) instead of Eastern Arabic (٠-٩) */
+    font-feature-settings: "lnum" 1;
+    -webkit-font-feature-settings: "lnum" 1;
+  }
+
+  /* Prevent lang="ar" from triggering Eastern Arabic numeral substitution */
+  :lang(ar) {
+    font-variant-numeric: tabular-nums;
+    -moz-font-feature-settings: "lnum";
+    -webkit-font-feature-settings: "lnum";
+    font-feature-settings: "lnum";
   }
 
   body {

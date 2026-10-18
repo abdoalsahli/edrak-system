@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getAccountBalances, getReceivables } from "@/lib/billing/TreasuryService";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -28,12 +29,7 @@ export default async function DashboardPage() {
         orderBy: { startTime: "asc" },
       }),
       prisma.program.count({ where: { status: { in: ["ACTIVE", "EXTENDED"] } } }),
-      prisma.invoice.findMany({
-        where: { status: { in: ["ISSUED", "PARTIAL"] } },
-        include: { patient: { select: { id: true, fullName: true } } },
-        orderBy: { dueDate: "asc" },
-        take: 5,
-      }),
+      getReceivables(5),
     ]);
 
     return (
@@ -80,16 +76,16 @@ export default async function DashboardPage() {
         {patientsWithBalance.length > 0 && (
           <div className="card">
             <div className="p-4 border-b border-gray-100">
-              <h2 className="font-semibold">فواتير مستحقة</h2>
+              <h2 className="font-semibold">أرصدة مستحقة على المرضى</h2>
             </div>
             <div className="divide-y divide-gray-100">
-              {patientsWithBalance.map((inv) => (
-                <div key={inv.id} className="px-4 py-3 flex items-center justify-between">
-                  <Link href={`/patients/${inv.patient.id}`} className="text-primary-600 hover:underline font-medium">
-                    {inv.patient.fullName}
+              {patientsWithBalance.map((r) => (
+                <div key={r.accountId} className="px-4 py-3 flex items-center justify-between">
+                  <Link href={`/patients/${r.patientId}`} className="text-primary-600 hover:underline font-medium">
+                    {r.name}
                   </Link>
                   <span className="text-sm text-red-600 font-medium" dir="ltr">
-                    {(Number(inv.totalAmount) - Number(inv.paidAmount)).toFixed(2)} ر.س
+                    {r.balance.toFixed(2)} ر.س
                   </span>
                 </div>
               ))}
@@ -101,17 +97,21 @@ export default async function DashboardPage() {
   }
 
   if (role === "MANAGER") {
-    const [activePrograms, activePatients, therapistCount, monthSessions, monthAbsent, invoiceSummary] = await Promise.all([
+    const [activePrograms, activePatients, therapistCount, monthSessions, monthAbsent, ledger, monthCollected] = await Promise.all([
       prisma.program.count({ where: { status: { in: ["ACTIVE", "EXTENDED"] } } }),
       prisma.patient.count({ where: { isActive: true } }),
       prisma.therapist.count({ where: { isActive: true } }),
       prisma.session.count({ where: { status: { in: ["COMPLETED", "ABSENT"] }, deliveredAt: { gte: monthStart, lte: monthEnd } } }),
       prisma.session.count({ where: { status: "ABSENT", deliveredAt: { gte: monthStart, lte: monthEnd } } }),
-      prisma.invoice.aggregate({ _sum: { totalAmount: true, paidAmount: true }, where: { status: { in: ["ISSUED", "PARTIAL", "PAID"] } } }),
+      // Receivables and payables come from the current accounts
+      getAccountBalances(new Date()),
+      // Collected = actual cash received this month, net of refunds
+      prisma.payment.aggregate({ _sum: { amount: true }, where: { paymentDate: { gte: monthStart, lte: monthEnd } } }),
     ]);
 
-    const collected = Number(invoiceSummary._sum.paidAmount ?? 0);
-    const outstanding = Number(invoiceSummary._sum.totalAmount ?? 0) - collected;
+    const collected = Number(monthCollected._sum.amount ?? 0);
+    const outstanding = ledger.totals.receivable;
+    const commissionsDue = ledger.totals.payable;
     const absentRate = monthSessions > 0 ? Math.round((monthAbsent / monthSessions) * 100) : 0;
 
     const recentPrograms = await prisma.program.findMany({
@@ -136,8 +136,9 @@ export default async function DashboardPage() {
             { label: "المعالجون", value: therapistCount },
             { label: "جلسات الشهر", value: monthSessions },
             { label: "نسبة الغياب", value: `${absentRate}%` },
-            { label: "محصّل إجمالي", value: `${collected.toLocaleString("ar-SA")} ر.س` },
-            { label: "مستحق", value: `${outstanding.toLocaleString("ar-SA")} ر.س` },
+            { label: "محصّل هذا الشهر", value: `${collected.toLocaleString("en-US")} ر.س` },
+            { label: "مستحق على المرضى", value: `${outstanding.toLocaleString("en-US")} ر.س` },
+            { label: "مستحق للأخصائيين", value: `${commissionsDue.toLocaleString("en-US")} ر.س` },
           ].map((s) => (
             <div key={s.label} className="card p-4">
               <p className="text-xs text-gray-500">{s.label}</p>
@@ -174,17 +175,13 @@ export default async function DashboardPage() {
   }
 
   if (role === "ACCOUNTANT") {
-    const [outstanding, partial, monthCollected, draftInvoices] = await Promise.all([
-      prisma.invoice.findMany({
-        where: { status: { in: ["ISSUED", "PARTIAL"] } },
-        include: { patient: { select: { id: true, fullName: true } } },
-        orderBy: { dueDate: "asc" },
-        take: 10,
-      }),
-      prisma.invoice.count({ where: { status: "PARTIAL" } }),
+    const [owing, monthCollected, draftInvoices, ledger] = await Promise.all([
+      getReceivables(10),
       prisma.payment.aggregate({ _sum: { amount: true }, where: { paymentDate: { gte: monthStart, lte: monthEnd } } }),
       prisma.invoice.count({ where: { status: "DRAFT" } }),
+      getAccountBalances(new Date()),
     ]);
+    const owingCount = ledger.groups.PATIENT.filter((r) => r.balance > 0.005).length;
 
     return (
       <div className="space-y-6">
@@ -192,10 +189,10 @@ export default async function DashboardPage() {
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: "فواتير مستحقة", value: outstanding.length },
-            { label: "دفعات جزئية", value: partial },
-            { label: "مسودات", value: draftInvoices },
-            { label: "محصّل هذا الشهر", value: `${Number(monthCollected._sum.amount ?? 0).toLocaleString("ar-SA")} ر.س` },
+            { label: "مستحق على المرضى", value: `${ledger.totals.receivable.toLocaleString("en-US")} ر.س` },
+            { label: "مستحق للأخصائيين", value: `${ledger.totals.payable.toLocaleString("en-US")} ر.س` },
+            { label: "محصّل هذا الشهر", value: `${Number(monthCollected._sum.amount ?? 0).toLocaleString("en-US")} ر.س` },
+            { label: "فواتير مسودة", value: draftInvoices },
           ].map((s) => (
             <div key={s.label} className="card p-4">
               <p className="text-xs text-gray-500">{s.label}</p>
@@ -206,25 +203,19 @@ export default async function DashboardPage() {
 
         <div className="card">
           <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-semibold">الفواتير المستحقة</h2>
-            <Link href="/billing" className="text-sm text-primary-600 hover:underline">عرض الكل</Link>
+            <h2 className="font-semibold">أعلى الأرصدة المدينة <span className="text-xs text-gray-400 font-normal">({owingCount} حساب)</span></h2>
+            <Link href="/finance/accounts?kind=PATIENT" className="text-sm text-primary-600 hover:underline">كل الحسابات</Link>
           </div>
-          {outstanding.length === 0 ? (
-            <p className="p-8 text-center text-gray-400">لا توجد فواتير مستحقة</p>
+          {owing.length === 0 ? (
+            <p className="p-8 text-center text-gray-400">لا توجد أرصدة مستحقة</p>
           ) : (
             <div className="divide-y divide-gray-100">
-              {outstanding.map((inv) => (
-                <div key={inv.id} className="px-4 py-3 flex items-center justify-between">
-                  <Link href={`/patients/${inv.patient.id}`} className="text-primary-600 hover:underline font-medium">
-                    {inv.patient.fullName}
+              {owing.map((r) => (
+                <div key={r.accountId} className="px-4 py-3 flex items-center justify-between">
+                  <Link href={`/finance/accounts/${r.accountId}`} className="text-primary-600 hover:underline font-medium">
+                    {r.name}
                   </Link>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="text-gray-500">الاستحقاق: {inv.dueDate ? format(new Date(inv.dueDate), "d MMM", { locale: arSA }) : "—"}</span>
-                    <span className="text-red-600 font-medium" dir="ltr">
-                      {(Number(inv.totalAmount) - Number(inv.paidAmount)).toFixed(2)} ر.س
-                    </span>
-                    <Link href={`/billing/${inv.id}`} className="text-primary-600 hover:underline text-xs">عرض</Link>
-                  </div>
+                  <span className="text-red-600 font-medium text-sm" dir="ltr">{r.balance.toFixed(2)} ر.س</span>
                 </div>
               ))}
             </div>

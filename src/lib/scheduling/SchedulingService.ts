@@ -30,28 +30,10 @@ function timesOverlap(s1: string, e1: string, s2: string, e2: string): boolean {
   return s1 < e2 && e1 > s2;
 }
 
-async function getCenterHolidays(): Promise<Set<string>> {
-  const holidays = await prisma.centerHoliday.findMany();
-  return new Set(holidays.map((h) => format(new Date(h.date), "yyyy-MM-dd")));
-}
-
-async function getCenterHours(): Promise<Map<number, { open: string; close: string; isOpen: boolean }>> {
-  const hours = await prisma.centerHours.findMany();
-  const map = new Map<number, { open: string; close: string; isOpen: boolean }>();
-  for (const h of hours) {
-    map.set(h.dayOfWeek, { open: h.openTime, close: h.closeTime, isOpen: h.isOpen });
-  }
-  return map;
-}
-
-async function getTherapistAvailability(
-  therapistId: string
-): Promise<Map<number, { start: string; end: string }>> {
-  const rows = await prisma.therapistAvailability.findMany({ where: { therapistId } });
-  const map = new Map<number, { start: string; end: string }>();
-  for (const r of rows) map.set(r.dayOfWeek, { start: r.startTime, end: r.endTime });
-  return map;
-}
+// NOTE: The center operates 24/7 and therapists have no fixed working hours,
+// so center-hours, center-holiday and therapist-availability lookups were
+// removed from scheduling. Only explicit therapist leave days and real
+// double-bookings can block an appointment.
 
 async function getTherapistOverrides(
   therapistId: string,
@@ -83,74 +65,50 @@ export async function validateAvailability(
   date: string,
   startTime: string,
   endTime: string,
-  excludeAppointmentId?: string
+  exclude?: string | string[] // appointments being moved — they must not conflict with themselves
 ): Promise<ConflictResult> {
+  const excludeIds = exclude ? (Array.isArray(exclude) ? exclude : [exclude]) : [];
+  const notExcluded = excludeIds.length ? { id: { notIn: excludeIds } } : {};
   const dow = new Date(date).getDay();
 
-  // 1. Center operating hours
-  const centerHours = await getCenterHours();
-  const ch = centerHours.get(dow);
-  if (!ch || !ch.isOpen) return { ok: false, reason: "المركز مغلق في هذا اليوم" };
-  if (startTime < ch.open || endTime > ch.close) {
-    return { ok: false, reason: `خارج أوقات عمل المركز (${ch.open} – ${ch.close})` };
-  }
+  // The center operates around the clock, every day, and therapists have no
+  // fixed working hours — so no operating-hours or availability-window checks.
+  // Only real double-bookings are rejected.
 
-  // 2. Holidays
-  const holidays = await getCenterHolidays();
-  if (holidays.has(date)) return { ok: false, reason: "يوم عطلة رسمية" };
-
-  // 3. Therapist weekly availability
-  const therapistAvail = await getTherapistAvailability(therapistId);
-  const ta = therapistAvail.get(dow);
-  if (!ta) return { ok: false, reason: "المعالج غير متاح في هذا اليوم" };
-  if (startTime < ta.start || endTime > ta.end) {
-    return { ok: false, reason: `خارج أوقات المعالج (${ta.start} – ${ta.end})` };
-  }
-
-  // 4. Therapist overrides
+  // 1. Explicit therapist leave (vacation / sick day) still blocks booking
   const overrides = await getTherapistOverrides(therapistId, date, date);
   const override = overrides.get(date);
-  if (override) {
-    if (!override.isAvailable) return { ok: false, reason: "المعالج غير متاح في هذا التاريخ" };
-    if (override.start && override.end) {
-      if (startTime < override.start || endTime > override.end) {
-        return { ok: false, reason: `خارج أوقات المعالج المعدلة لهذا اليوم (${override.start} – ${override.end})` };
-      }
-    }
+  if (override && !override.isAvailable) {
+    return { ok: false, reason: "المعالج في إجازة في هذا التاريخ" };
   }
 
-  // 5. Therapist booking conflict
-  const therapistConflict = await prisma.appointment.findFirst({
+  // 2. Therapist booking conflict — every booking that day, not just the first one found
+  const therapistDay = await prisma.appointment.findMany({
     where: {
       therapistId,
       date: new Date(date),
       status: { not: "CANCELLED" },
       deletedAt: null,
-      ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
+      ...notExcluded,
     },
+    select: { startTime: true, endTime: true },
   });
-  if (
-    therapistConflict &&
-    timesOverlap(startTime, endTime, therapistConflict.startTime, therapistConflict.endTime)
-  ) {
+  if (therapistDay.some((a) => timesOverlap(startTime, endTime, a.startTime, a.endTime))) {
     return { ok: false, reason: "المعالج لديه موعد آخر في هذا الوقت" };
   }
 
-  // 6. Patient conflict (cross-program double-booking)
-  const patientConflict = await prisma.appointment.findFirst({
+  // 3. Patient conflict (cross-program double-booking)
+  const patientDay = await prisma.appointment.findMany({
     where: {
       status: { not: "CANCELLED" },
       deletedAt: null,
       date: new Date(date),
       session: { patientId },
-      ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
+      ...notExcluded,
     },
-    include: { session: true },
+    select: { startTime: true, endTime: true },
   });
-  if (
-    patientConflict &&
-    timesOverlap(startTime, endTime, patientConflict.startTime, patientConflict.endTime)
-  ) {
+  if (patientDay.some((a) => timesOverlap(startTime, endTime, a.startTime, a.endTime))) {
     return { ok: false, reason: "المريض لديه موعد آخر في هذا الوقت" };
   }
 
@@ -167,12 +125,10 @@ export async function generateProgramSchedule(config: {
   sessionsPerWeek: number;
   durationMin: number;
   defaultStartTime: string;
+  allowedDays?: number[]; // 0=Sun … 6=Sat; if empty/undefined → no restriction
+  excludeAppointmentIds?: string[]; // appointments being moved (rescheduling a programme)
 }): Promise<{ proposed: ProposedAppointment[]; conflicts: string[] }> {
-  const { patientId, therapistId, startDate, totalSessions, sessionsPerWeek, durationMin, defaultStartTime } = config;
-
-  const centerHours = await getCenterHours();
-  const holidays = await getCenterHolidays();
-  const therapistAvail = await getTherapistAvailability(therapistId);
+  const { patientId, therapistId, startDate, totalSessions, sessionsPerWeek, durationMin, defaultStartTime, allowedDays, excludeAppointmentIds } = config;
 
   // Calculate rough end date for override fetching (add buffer)
   const roughWeeks = Math.ceil(totalSessions / sessionsPerWeek) + 8;
@@ -188,14 +144,18 @@ export async function generateProgramSchedule(config: {
   while (proposed.length < totalSessions && consecutiveMisses < 365) {
     const dateStr = format(current, "yyyy-MM-dd");
     const dow = current.getDay();
-    const ch = centerHours.get(dow);
-    const ta = therapistAvail.get(dow);
     const override = overrides.get(dateStr);
 
-    let dayOk = ch?.isOpen && ta && !holidays.has(dateStr);
-    if (dayOk && override) {
-      dayOk = override.isAvailable;
+    // Skip if not in the user-selected days
+    if (allowedDays && allowedDays.length > 0 && !allowedDays.includes(dow)) {
+      current = addDays(current, 1);
+      consecutiveMisses++;
+      continue;
     }
+
+    // The center is always open and therapists have no fixed hours —
+    // only an explicit leave day blocks scheduling.
+    let dayOk = !override || override.isAvailable;
 
     if (dayOk && proposed.filter((p) => {
       const pDate = parseISO(p.date);
@@ -212,7 +172,7 @@ export async function generateProgramSchedule(config: {
       const end = addMinutes(start, durationMin);
 
       // Check therapist + patient conflicts for this slot
-      const conflict = await validateAvailability(therapistId, patientId, dateStr, start, end);
+      const conflict = await validateAvailability(therapistId, patientId, dateStr, start, end, excludeAppointmentIds);
       if (conflict.ok) {
         proposed.push({ date: dateStr, startTime: start, endTime: end, sequenceNumber: seq });
         seq++;

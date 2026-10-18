@@ -4,7 +4,7 @@ import { ok, badRequest, requireAuth, paginate } from "@/lib/api";
 import { z } from "zod";
 
 const createSchema = z.object({
-  fullName: z.string().min(2),
+  fullName: z.string().trim().min(2, "اسم المريض مطلوب (حرفان على الأقل)"),
   dob: z.string().optional().nullable(),
   gender: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
@@ -12,7 +12,7 @@ const createSchema = z.object({
   nationalId: z.string().optional().nullable(),
   patientType: z.enum(["ADULT", "CHILD"]).default("ADULT"),
   guardian: z.object({
-    fullName: z.string().min(2),
+    fullName: z.string().trim().min(2, "اسم ولي الأمر مطلوب (حرفان على الأقل)"),
     relationship: z.string().optional().nullable(),
     phone: z.string().optional().nullable(),
     nationalId: z.string().optional().nullable(),

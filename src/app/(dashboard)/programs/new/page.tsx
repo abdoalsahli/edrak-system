@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { DEFAULT_SESSION_MINUTES, DEFAULT_SESSION_PRICE, sessionDefaults } from "@/lib/sessionDefaults";
 import { ScheduleRhythmFields, daysMatch, daysMismatchMessage } from "@/components/programs/ScheduleRhythmFields";
 import { ScheduleCalendar, ScheduleWarnings, fmtDateAr, type ProposedApt } from "@/components/programs/ScheduleCalendar";
 
@@ -33,11 +34,11 @@ export default function NewProgramPage() {
   const [startDate, setStartDate] = useState("");
   const [sessionsPerWeek, setSessionsPerWeek] = useState(3);
   const [totalSessions, setTotalSessions] = useState(12);
-  const [durationMin, setDurationMin] = useState(60);
+  const [durationMin, setDurationMin] = useState(DEFAULT_SESSION_MINUTES);
   // The programme is agreed as totals; per-session values are derived from them
-  const [totalValue, setTotalValue] = useState<number | "">("");
+  const [totalValue, setTotalValue] = useState<number | "">(DEFAULT_SESSION_PRICE * 12); // 12 sessions × 50 until a service is chosen
   const [totalCommission, setTotalCommission] = useState<number | "">("");
-  const [defaultStartTime, setDefaultStartTime] = useState("09:00");
+  const [defaultStartTime, setDefaultStartTime] = useState("15:00");
   const [notes, setNotes] = useState("");
   // Session days — must be exactly as many as sessions per week
   const [allowedDays, setAllowedDays] = useState<number[]>([0, 2, 4]); // Sun, Tue, Thu for the default 3/week
@@ -71,9 +72,10 @@ export default function NewProgramPage() {
     setServiceId(id);
     const s = services.find((x) => x.id === id);
     if (s) {
-      setDurationMin(s.defaultDurationMin);
+      const d = sessionDefaults(s); // the service's own values, else 60 min / 50 د.ل
+      setDurationMin(d.minutes);
       const sessions = s.defaultTotalSessions ?? totalSessions;
-      setTotalValue(s.defaultPrice != null ? r2(Number(s.defaultPrice) * sessions) : "");
+      setTotalValue(r2(d.price * sessions));
       if (s.defaultSessionsPerWeek) setSessionsPerWeek(s.defaultSessionsPerWeek);
       if (s.defaultTotalSessions) setTotalSessions(s.defaultTotalSessions);
     }
@@ -145,7 +147,7 @@ export default function NewProgramPage() {
         <div className="grid grid-cols-4 gap-3 mb-5">
           {[
             { label: "إجمالي الجلسات", value: proposed.length, color: "text-primary-700 bg-primary-50" },
-            { label: "قيمة البرنامج", value: `${programTotal.toFixed(2)} ر.س`, color: "text-blue-700 bg-blue-50" },
+            { label: "قيمة البرنامج", value: `${programTotal.toFixed(2)} د.ل`, color: "text-blue-700 bg-blue-50" },
             { label: "تاريخ البدء", value: proposed[0] ? fmtDateAr(proposed[0].date).split("،")[1].trim() : "—", color: "text-gray-700 bg-gray-50" },
             { label: "تاريخ الانتهاء", value: proposed.at(-1) ? fmtDateAr(proposed.at(-1)!.date).split("،")[1].trim() : "—", color: "text-gray-700 bg-gray-50" },
           ].map(s => (
@@ -163,15 +165,15 @@ export default function NewProgramPage() {
         <div className="card p-4 mt-4 grid grid-cols-3 gap-4 text-sm">
           <div>
             <p className="text-xs text-gray-500">قيمة الجلسة الواحدة</p>
-            <p className="font-bold text-gray-800 mt-0.5" dir="ltr">{perSession.toFixed(2)} ر.س</p>
+            <p className="font-bold text-gray-800 mt-0.5" dir="ltr">{perSession.toFixed(2)} د.ل</p>
           </div>
           <div>
             <p className="text-xs text-gray-500">عمولة الأخصائي من كل جلسة</p>
-            <p className="font-bold text-amber-700 mt-0.5" dir="ltr">{perSessionCommission.toFixed(2)} ر.س</p>
+            <p className="font-bold text-amber-700 mt-0.5" dir="ltr">{perSessionCommission.toFixed(2)} د.ل</p>
           </div>
           <div>
             <p className="text-xs text-gray-500">إجمالي العمولة على البرنامج</p>
-            <p className="font-bold text-amber-700 mt-0.5" dir="ltr">{programCommission.toFixed(2)} ر.س</p>
+            <p className="font-bold text-amber-700 mt-0.5" dir="ltr">{programCommission.toFixed(2)} د.ل</p>
           </div>
         </div>
 
@@ -231,7 +233,7 @@ export default function NewProgramPage() {
                 </div>
                 <span className={remainingAfterPay > 0 ? "text-amber-700 font-medium" : "text-green-700 font-medium"}>
                   {remainingAfterPay > 0
-                    ? `الرصيد المستحق على المريض: ${remainingAfterPay.toFixed(2)} ر.س`
+                    ? `الرصيد المستحق على المريض: ${remainingAfterPay.toFixed(2)} د.ل`
                     : "✓ مسدّد بالكامل"}
                 </span>
               </div>
@@ -246,7 +248,7 @@ export default function NewProgramPage() {
             {saving
               ? "جارٍ الحفظ..."
               : collectNow && Number(payAmount) > 0
-              ? `✓ تأكيد وإنشاء البرنامج — ${proposed.length} جلسة + قبض ${Number(payAmount).toFixed(2)} ر.س`
+              ? `✓ تأكيد وإنشاء البرنامج — ${proposed.length} جلسة + قبض ${Number(payAmount).toFixed(2)} د.ل`
               : `✓ تأكيد وإنشاء البرنامج — ${proposed.length} جلسة`}
           </button>
           <button onClick={() => setStep("config")} className="btn-secondary">← تعديل الإعدادات</button>
@@ -310,7 +312,7 @@ export default function NewProgramPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label">إجمالي قيمة البرنامج (ر.س) <span className="text-red-500">*</span></label>
+            <label className="label">إجمالي قيمة البرنامج (د.ل) <span className="text-red-500">*</span></label>
             <input
               required
               type="number"
@@ -324,7 +326,7 @@ export default function NewProgramPage() {
             />
           </div>
           <div>
-            <label className="label">إجمالي عمولة الأخصائي (ر.س)</label>
+            <label className="label">إجمالي عمولة الأخصائي (د.ل)</label>
             <input
               type="number"
               min={0}
@@ -342,15 +344,15 @@ export default function NewProgramPage() {
           <div className="bg-primary-50 border border-primary-100 rounded-xl px-4 py-3 space-y-1.5">
             <div className="flex items-center justify-between text-sm text-primary-900">
               <span>قيمة الجلسة الواحدة ({totalSessions} جلسة)</span>
-              <span className="font-bold" dir="ltr">{r2(Number(totalValue) / totalSessions).toFixed(2)} ر.س</span>
+              <span className="font-bold" dir="ltr">{r2(Number(totalValue) / totalSessions).toFixed(2)} د.ل</span>
             </div>
             <div className="flex items-center justify-between text-sm text-primary-800">
               <span>عمولة الأخصائي من كل جلسة</span>
-              <span className="font-bold" dir="ltr">{r2((Number(totalCommission) || 0) / totalSessions).toFixed(2)} ر.س</span>
+              <span className="font-bold" dir="ltr">{r2((Number(totalCommission) || 0) / totalSessions).toFixed(2)} د.ل</span>
             </div>
             <div className="flex items-center justify-between text-xs text-primary-700 pt-1.5 border-t border-primary-100">
               <span>صافي المركز من البرنامج</span>
-              <span className="font-bold" dir="ltr">{r2(Number(totalValue) - (Number(totalCommission) || 0)).toFixed(2)} ر.س</span>
+              <span className="font-bold" dir="ltr">{r2(Number(totalValue) - (Number(totalCommission) || 0)).toFixed(2)} د.ل</span>
             </div>
             {Number(totalCommission) > Number(totalValue) && (
               <p className="text-xs text-red-600 pt-1">العمولة تتجاوز قيمة البرنامج</p>

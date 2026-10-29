@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionTabs, DOCUMENT_TABS } from "@/components/ui/SectionTabs";
 import { Badge } from "@/components/ui/Badge";
 import { VoucherModal } from "@/components/finance/VoucherModal";
 
@@ -69,10 +70,11 @@ export default function SettlementsPage() {
   return (
     <div>
       <PageHeader
-        title="التسويات"
+        title="السندات والتسويات"
         description="قيود بلا حركة نقدية مع الأطراف: خصم، إعدام دين، تصحيح، تحويل بين حسابين أو صندوقين"
         action={<button onClick={() => setCreating(true)} className="btn-primary text-sm">+ تسوية</button>}
       />
+      <SectionTabs tabs={DOCUMENT_TABS} />
 
       <div className="card p-4 mb-4">
         <div className="grid grid-cols-4 gap-3 items-end">

@@ -9,9 +9,12 @@ import { arSA } from "date-fns/locale";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
+import { AlertTriangle, Pencil } from "lucide-react";
+import { EditSessionModal } from "@/components/sessions/EditSessionModal";
+import { range12 } from "@/lib/time12";
 
 const STATUS_MAP: Record<string, { label: string; variant: "success" | "danger" | "warning" | "gray" | "default" }> = {
-  PENDING:              { label: "مجدولة",       variant: "warning" },
+  PENDING:              { label: "مجدولة",       variant: "default" },
   COMPLETED:            { label: "مكتملة",       variant: "success" },
   ABSENT:               { label: "غياب",          variant: "danger"  },
   CANCELLED_BY_PATIENT: { label: "ألغى المريض",  variant: "gray"    },
@@ -21,7 +24,7 @@ const STATUS_MAP: Record<string, { label: string; variant: "success" | "danger" 
 type Appointment = {
   id: string; date: string; startTime: string; endTime: string;
   status: string; isMakeup: boolean;
-  therapist: { fullName: string };
+  therapist: { id: string; fullName: string };
   room?: { name: string } | null;
 };
 
@@ -47,6 +50,7 @@ type SessionData = {
   programSequenceNumber: number | null;
   patient:  { id: string; fullName: string };
   service:  { name: string };
+  serviceId: string;
   price: number | null;
   isCharged: boolean;
   program:  { id: string; invoice: InvoiceRef | null } | null;
@@ -75,8 +79,9 @@ export default function SessionDetailPage() {
   // An absence or cancellation is never charged automatically — the user is asked
   const [chargeAsk,       setChargeAsk]       = useState(false);
   const [rescheduleModal, setRescheduleModal] = useState(false);
+  const [editModal,       setEditModal]       = useState(false);
   const [newDate,         setNewDate]         = useState("");
-  const [newStartTime,    setNewStartTime]    = useState("09:00");
+  const [newStartTime,    setNewStartTime]    = useState("15:00");
   const [durationMin,     setDurationMin]     = useState(60);
   const [saving,          setSaving]          = useState(false);
   const [error,           setError]           = useState("");
@@ -178,8 +183,9 @@ export default function SessionDetailPage() {
         }
         action={
           data.status === "PENDING" ? (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button onClick={() => setOutcomeModal(true)} className="btn-primary">تسجيل النتيجة</button>
+              <button onClick={() => setEditModal(true)} className="btn-secondary"><Pencil className="size-4" />تعديل</button>
               {activeApt && <button onClick={() => setRescheduleModal(true)} className="btn-secondary">إعادة جدولة</button>}
               <button onClick={deleteSession} className="btn-danger">حذف</button>
             </div>
@@ -195,9 +201,9 @@ export default function SessionDetailPage() {
           <div>
             <span className="text-gray-500">قيمة الجلسة:</span>{" "}
             {data.price != null && Number(data.price) > 0 ? (
-              <span className="font-medium" dir="ltr">{Number(data.price).toFixed(2)} ر.س</span>
+              <span className="font-medium" dir="ltr">{Number(data.price).toFixed(2)} د.ل</span>
             ) : (
-              <span className="text-red-600 text-xs">⚠️ بدون قيمة</span>
+              <span className="inline-flex items-center gap-1 text-xs text-red-600"><AlertTriangle className="size-3.5" />بدون قيمة</span>
             )}
             {["ABSENT", "CANCELLED_BY_PATIENT", "CANCELLED_BY_CENTER"].includes(data.status) && (
               <span className="ms-2 inline-flex items-center gap-2">
@@ -235,7 +241,7 @@ export default function SessionDetailPage() {
               <div key={a.id} className={`flex items-center justify-between p-3 rounded-lg border text-sm ${a.status === "CANCELLED" ? "opacity-50 bg-gray-50" : "bg-white"}`}>
                 <div>
                   <span className="font-medium">{format(parseISO(a.date), "EEEE d MMM yyyy", { locale: arSA })}</span>
-                  <span className="text-gray-500 mx-2" dir="ltr">{a.startTime} – {a.endTime}</span>
+                  <span className="text-gray-500 mx-2">{range12(a.startTime, a.endTime)}</span>
                   {a.isMakeup && <Badge variant="info">تعويضي</Badge>}
                 </div>
                 <div className="text-xs text-gray-500">
@@ -357,7 +363,7 @@ export default function SessionDetailPage() {
               <p className="text-sm text-amber-800 mt-1">
                 {({ ABSENT: "غياب", CANCELLED_BY_PATIENT: "إلغاء من المريض", CANCELLED_BY_CENTER: "إلغاء من المركز" } as Record<string, string>)[outcomeStatus]}
                 {" — "}قيمة الجلسة{" "}
-                <strong dir="ltr">{Number(data.price ?? 0).toFixed(2)} ر.س</strong>
+                <strong dir="ltr">{Number(data.price ?? 0).toFixed(2)} د.ل</strong>
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -420,6 +426,22 @@ export default function SessionDetailPage() {
           </div>
         </form>
       </Modal>
+      {data.status === "PENDING" && (
+        <EditSessionModal
+          open={editModal}
+          onClose={() => setEditModal(false)}
+          onSaved={load}
+          session={{
+            id: data.id,
+            serviceId: data.serviceId,
+            price: data.price,
+            inProgram: !!data.program,
+            appointment: activeApt
+              ? { therapistId: activeApt.therapist.id, date: activeApt.date, startTime: activeApt.startTime, endTime: activeApt.endTime }
+              : null,
+          }}
+        />
+      )}
     </div>
   );
 }

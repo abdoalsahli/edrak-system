@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Search } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -22,7 +23,8 @@ export default async function PatientsPage({
   const where = q
     ? {
         OR: [
-          { fullName: { contains: q, mode: "insensitive" as const } },
+          // MySQL compares case-insensitively already; Prisma rejects `mode` on MySQL
+          { fullName: { contains: q } },
           { phone: { contains: q } },
           { nationalId: { contains: q } },
         ],
@@ -52,17 +54,18 @@ export default async function PatientsPage({
         }
       />
 
-      {/* Search */}
-      <form method="GET" className="mb-4">
-        <input
-          name="q"
-          defaultValue={q}
-          placeholder="بحث بالاسم أو الهاتف أو الهوية..."
-          className="input max-w-sm"
-        />
-      </form>
+      <div className="card p-5">
+        {/* Search */}
+        <form method="GET" className="relative mb-4 max-w-sm">
+          <Search className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-gray-500" />
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="ابحث بالاسم أو الهاتف أو الهوية"
+            className="input !rounded-full pr-11"
+          />
+        </form>
 
-      <div className="card">
         {patients.length === 0 ? (
           <EmptyState
             title="لا يوجد مرضى"
@@ -91,14 +94,14 @@ export default async function PatientsPage({
               {patients.map((p) => (
                 <Tr key={p.id}>
                   <Td>
-                    <span className="font-medium text-gray-900">{p.fullName}</span>
+                    <Link href={`/patients/${p.id}`} className="font-medium text-gray-800 hover:text-primary-600">{p.fullName}</Link>
                   </Td>
                   <Td>
-                    <Badge variant="gray">
+                    <Badge variant={p.patientType === "ADULT" ? "default" : "info"}>
                       {p.patientType === "ADULT" ? "بالغ" : "طفل"}
                     </Badge>
                   </Td>
-                  <Td>{p.phone ?? "—"}</Td>
+                  <Td><bdi>{p.phone ?? "—"}</bdi></Td>
                   <Td>{p.guardian?.fullName ?? "—"}</Td>
                   <Td>
                     <Badge variant={p.isActive ? "success" : "gray"}>

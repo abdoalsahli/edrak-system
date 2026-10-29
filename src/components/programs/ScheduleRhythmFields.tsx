@@ -87,7 +87,7 @@ export function ScheduleRhythmFields({
                 type="button"
                 disabled={locked}
                 onClick={() => onAllowedDays(selected ? allowedDays.filter((d) => d !== i) : [...allowedDays, i].sort())}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                className={`rounded-[1.5rem] border px-4 py-2 text-sm font-medium transition-colors ${
                   selected
                     ? "bg-primary-600 text-white border-primary-600"
                     : locked

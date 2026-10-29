@@ -29,8 +29,10 @@ export async function GET(req: Request) {
       ...(type ? { deliveryType: type as "SINGLE_SESSION" | "PROGRAM" } : {}),
     },
     orderBy: { name: "asc" },
+    // how many sessions / programmes use it — a used service can only be disabled
+    include: { _count: { select: { sessions: true, programs: true } } },
   });
-  return ok(services);
+  return ok(services.map(({ _count, ...s }) => ({ ...s, usage: _count.sessions + _count.programs })));
 }
 
 export async function POST(req: Request) {

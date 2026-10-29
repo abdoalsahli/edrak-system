@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Wallet, Landmark } from "lucide-react";
 
 export type PaymentMethodOption = {
   id: string;
@@ -61,7 +62,7 @@ export function PaymentMethodField({
       <div>
         <label className={labelCls}>{direction === "to" ? "إلى صندوق" : "من صندوق"}</label>
         <div className={`${inputCls} bg-gray-50 text-gray-600 truncate`}>
-          {box ? `${box.type === "CASH" ? "💵" : "🏦"} ${box.name}` : "—"}
+          {box ? <span className="inline-flex items-center gap-2">{box.type === "CASH" ? <Wallet className="size-4 text-gray-500" /> : <Landmark className="size-4 text-gray-500" />}{box.name}</span> : "—"}
         </div>
       </div>
     </>

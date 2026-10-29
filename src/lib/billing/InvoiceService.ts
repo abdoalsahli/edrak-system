@@ -68,7 +68,8 @@ export function deriveInvoiceStatus(
  */
 export async function recalcProgramInvoice(
   tx: Prisma.TransactionClient,
-  programId: string
+  programId: string,
+  reason?: string // what happened, for the ledger line (see syncInvoiceLedger)
 ): Promise<RecalcResult | null> {
   const program = await tx.program.findUnique({
     where: { id: programId },
@@ -107,7 +108,7 @@ export async function recalcProgramInvoice(
   });
 
   // Post the change to the patient's current account
-  await syncInvoiceLedger(tx, invoice.id);
+  await syncInvoiceLedger(tx, invoice.id, reason);
 
   return {
     invoiceId: invoice.id,
@@ -167,10 +168,11 @@ export async function recalcSessionInvoice(
 export async function recalcInvoiceForSession(
   tx: Prisma.TransactionClient,
   sessionId: string,
-  programId: string | null
+  programId: string | null,
+  reason?: string
 ): Promise<RecalcResult | null> {
   return programId
-    ? recalcProgramInvoice(tx, programId)
+    ? recalcProgramInvoice(tx, programId, reason)
     : recalcSessionInvoice(tx, sessionId);
 }
 

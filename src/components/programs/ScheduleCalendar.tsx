@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { DAY_AR } from "./ScheduleRhythmFields";
+import { Info, AlertTriangle } from "lucide-react";
+import { to12 } from "@/lib/time12";
 
 export type ProposedApt = { date: string; startTime: string; endTime: string; sequenceNumber: number };
 
@@ -109,12 +111,12 @@ export function ScheduleCalendar({
                                 autoFocus
                                 onBlur={() => setEditSeq(null)}
                               />
-                              <div className="text-xs text-gray-400 text-center" dir="ltr">{apt.endTime}</div>
+                              <div className="text-xs text-gray-400 text-center">{to12(apt.endTime)}</div>
                             </div>
                           ) : (
                             <button type="button" className="w-full text-start" onClick={() => setEditSeq(apt.sequenceNumber)} title="انقر لتعديل الوقت">
-                              <div className="text-xs font-medium text-primary-700 leading-tight" dir="ltr">{apt.startTime}</div>
-                              <div className="text-xs text-gray-400 leading-tight" dir="ltr">{apt.endTime}</div>
+                              <div className="text-xs font-medium text-primary-700 leading-tight">{to12(apt.startTime)}</div>
+                              <div className="text-xs text-gray-400 leading-tight">{to12(apt.endTime)}</div>
                               <div className="text-xs text-gray-400">#{apt.sequenceNumber}</div>
                             </button>
                           )}
@@ -134,7 +136,7 @@ export function ScheduleCalendar({
           );
         })}
       </div>
-      <p className="text-xs text-gray-400 mt-3">💡 انقر على وقت الجلسة لتعديله{allowRemove ? "، أو على × لحذفها" : ""}</p>
+      <p className="mt-3 flex items-center gap-1.5 text-xs text-gray-400"><Info className="size-3.5" />انقر على وقت الجلسة لتعديله{allowRemove ? "، أو على × لحذفها" : ""}</p>
     </>
   );
 }
@@ -145,7 +147,7 @@ export function ScheduleWarnings({ conflicts, generated, requested }: { conflict
     <>
       {conflicts.length > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
-          <p className="font-medium text-yellow-800 mb-1">⚠️ تعارضات تم تجاوزها ({conflicts.length})</p>
+          <p className="font-medium text-yellow-800 mb-1"><AlertTriangle className="inline size-4 align-[-3px]" /> تعارضات تم تجاوزها ({conflicts.length})</p>
           <ul className="text-sm text-yellow-700 space-y-0.5 max-h-28 overflow-y-auto">
             {conflicts.map((c, i) => <li key={i}>• {c}</li>)}
           </ul>
@@ -153,7 +155,7 @@ export function ScheduleWarnings({ conflicts, generated, requested }: { conflict
       )}
       {generated < requested && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-sm text-red-700">
-          ⚠️ تم توليد <strong>{generated}</strong> جلسة من أصل <strong>{requested}</strong> — قد تحتاج لتعديل الإعدادات أو إضافة توفّر للمعالج.
+          <AlertTriangle className="inline size-4 align-[-3px]" /> تم توليد <strong>{generated}</strong> جلسة من أصل <strong>{requested}</strong> — قد تحتاج لتعديل الإعدادات أو إضافة توفّر للمعالج.
         </div>
       )}
     </>

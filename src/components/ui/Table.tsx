@@ -10,7 +10,7 @@ export function Table({ children, className }: { children: React.ReactNode; clas
 
 export function Thead({ children }: { children: React.ReactNode }) {
   return (
-    <thead className="bg-gray-50 border-b border-gray-100">
+    <thead className="border-b border-gray-200">
       {children}
     </thead>
   );
@@ -18,14 +18,14 @@ export function Thead({ children }: { children: React.ReactNode }) {
 
 export function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
   return (
-    <th className={cn("px-4 py-3 text-start text-xs font-semibold text-gray-500 uppercase tracking-wider", className)}>
+    <th className={cn("whitespace-nowrap px-4 py-3 text-start text-sm font-medium text-gray-500", className)}>
       {children}
     </th>
   );
 }
 
 export function Tbody({ children }: { children: React.ReactNode }) {
-  return <tbody className="divide-y divide-gray-50">{children}</tbody>;
+  return <tbody className="divide-y divide-gray-300/70">{children}</tbody>;
 }
 
 export function Tr({
@@ -41,7 +41,7 @@ export function Tr({
     <tr
       onClick={onClick}
       className={cn(
-        "hover:bg-gray-50 transition-colors",
+        "hover:bg-gray-50/70 transition-colors",
         onClick && "cursor-pointer",
         className
       )}
@@ -53,6 +53,6 @@ export function Tr({
 
 export function Td({ children, className, dir }: { children?: React.ReactNode; className?: string; dir?: string }) {
   return (
-    <td dir={dir} className={cn("px-4 py-3 text-gray-700", className)}>{children}</td>
+    <td dir={dir} className={cn("px-4 py-3.5 text-gray-800", className)}>{children}</td>
   );
 }

@@ -29,7 +29,7 @@ export function Pagination({
   }
 
   return (
-    <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+    <div className="flex items-center justify-between mt-5 text-sm text-gray-500">
       <span>
         عرض {Math.min((page - 1) * effectivePerPage + 1, total)}–{Math.min(page * effectivePerPage, total)} من {total}
       </span>
@@ -37,7 +37,7 @@ export function Pagination({
         <button
           onClick={() => goTo(page - 1)}
           disabled={page === 1}
-          className="px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-3 py-2 rounded-xl font-medium text-primary-600 hover:bg-primary-50 disabled:text-gray-400 disabled:hover:bg-transparent disabled:cursor-not-allowed"
         >
           السابق
         </button>
@@ -47,10 +47,10 @@ export function Pagination({
             <button
               key={p}
               onClick={() => goTo(p)}
-              className={`px-3 py-1.5 rounded-lg border ${
+              className={`min-w-[40px] h-10 px-3 rounded-xl font-medium ${
                 p === page
-                  ? "bg-primary-600 text-white border-primary-600"
-                  : "border-gray-200 hover:bg-gray-50"
+                  ? "bg-primary-600 text-white"
+                  : "text-primary-600 hover:bg-primary-50"
               }`}
             >
               {p}
@@ -60,7 +60,7 @@ export function Pagination({
         <button
           onClick={() => goTo(page + 1)}
           disabled={page === totalPages}
-          className="px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-3 py-2 rounded-xl font-medium text-primary-600 hover:bg-primary-50 disabled:text-gray-400 disabled:hover:bg-transparent disabled:cursor-not-allowed"
         >
           التالي
         </button>

@@ -42,6 +42,12 @@ async function main() {
     },
   });
 
+  // ── Staff records for the logins above (الموظفون) ──────────────────────────
+  for (const u of await prisma.user.findMany({ where: { role: { not: UserRole.THERAPIST }, employee: null } })) {
+    const jobTitle = u.role === UserRole.MANAGER ? "مدير" : u.role === UserRole.ACCOUNTANT ? "محاسب" : "موظف استقبال";
+    await prisma.employee.create({ data: { fullName: u.name, jobTitle, isActive: u.isActive, userId: u.id } });
+  }
+
   // ── Therapist portal login (demo) — linked to the first therapist, if any ──
   const firstTherapist = await prisma.therapist.findFirst({ where: { userId: null }, orderBy: { createdAt: "asc" } });
   if (firstTherapist && !(await prisma.user.findUnique({ where: { email: "therapist@edrak.com" } }))) {

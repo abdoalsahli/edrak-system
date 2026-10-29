@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionTabs, DOCUMENT_TABS } from "@/components/ui/SectionTabs";
 import { Table, Thead, Th, Tbody, Tr, Td } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -38,7 +39,7 @@ const CATEGORY_AR: Record<string, string> = {
 };
 
 const fmt = (n: number) =>
-  `${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ر.س`;
+  `${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} د.ل`;
 
 const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 function fmtDate(iso: string) {
@@ -86,10 +87,11 @@ export default function VouchersPage() {
   return (
     <div>
       <PageHeader
-        title="سندات الصرف"
+        title="السندات والتسويات"
         description="كل المبالغ الصادرة من صناديق المركز"
         action={<button onClick={() => setCreating(true)} className="btn-primary text-sm">+ سند صرف</button>}
       />
+      <SectionTabs tabs={DOCUMENT_TABS} />
 
       <div className="card p-4 mb-4">
         <div className="grid grid-cols-5 gap-3 items-end">

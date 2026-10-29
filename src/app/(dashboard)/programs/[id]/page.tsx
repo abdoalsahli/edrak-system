@@ -9,9 +9,14 @@ import { arSA } from "date-fns/locale";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
+import { StatCard } from "@/components/ui/StatCard";
+import { CalendarCog, PlusCircle, Ban, CheckCircle2, ClipboardList, Wallet, Percent } from "lucide-react";
+import { range12 } from "@/lib/time12";
+
+const moneyLD = (n: number) => `${n.toLocaleString("en-US", { maximumFractionDigits: 2 })} د.ل`;
 
 const SESSION_STATUS: Record<string, { label: string; variant: "success" | "danger" | "warning" | "gray" | "default" }> = {
-  PENDING: { label: "مجدولة", variant: "warning" },
+  PENDING: { label: "مجدولة", variant: "default" },
   COMPLETED: { label: "مكتملة", variant: "success" },
   ABSENT: { label: "غياب", variant: "danger" },
   CANCELLED_BY_PATIENT: { label: "ألغى المريض", variant: "gray" },
@@ -115,9 +120,10 @@ export default function ProgramDetailPage() {
         }
         action={
           data.status === "ACTIVE" || data.status === "EXTENDED" ? (
-            <div className="flex gap-2">
-              <Link href={`/programs/${id}/edit`} className="btn-secondary text-sm">تعديل</Link>
-              <Link href={`/programs/${id}/extend`} className="btn-secondary text-sm">تمديد</Link>
+            <div className="flex flex-wrap gap-2">
+              <Link href={`/programs/${id}/edit`} className="btn-secondary"><CalendarCog className="size-4" />تعديل المواعيد</Link>
+              <Link href={`/programs/${id}/extend`} className="btn-secondary"><PlusCircle className="size-4" />تمديد</Link>
+              <button onClick={() => setCancelModal(true)} className="btn-secondary"><Ban className="size-4" />إلغاء</button>
               <button
                 onClick={() => {
                   const left = data.sessions.filter((s) => s.status === "PENDING").length;
@@ -127,90 +133,76 @@ export default function ProgramDetailPage() {
                   if (confirm(msg)) doAction({ action: "complete" });
                 }}
                 disabled={saving}
-                className="btn-secondary text-sm"
+                className="btn-primary"
               >
-                إتمام
+                <CheckCircle2 className="size-4" />
+                إتمام البرنامج
               </button>
-              <button onClick={() => setCancelModal(true)} className="btn-danger text-sm">إلغاء</button>
             </div>
           ) : null
         }
       />
 
-      {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        {[
-          { label: "مخطط", value: data.plannedSessions },
-          { label: "مُستهلك", value: data.consumedSessions },
-          { label: "متبقي", value: data.remainingSessions },
-          { label: "التقدم", value: `${pct}%` },
-        ].map((s) => (
-          <div key={s.label} className="card p-4 text-center">
-            <p className="text-2xl font-bold text-primary-700">{s.value}</p>
-            <p className="text-xs text-gray-500 mt-1">{s.label}</p>
-          </div>
-        ))}
+      {/* Stats */}
+      <div className="mb-6 grid gap-5 md:grid-cols-3">
+        <StatCard label="التقدّم" value={`${data.consumedSessions} / ${data.plannedSessions}`} icon={ClipboardList} tone="primary"
+          hint={`متبقي ${data.remainingSessions} جلسة`} />
+        <StatCard label="قيمة الجلسة" value={`${Number(data.sessionPrice ?? 0).toLocaleString("en-US")} د.ل`} icon={Wallet} tone="success"
+          hint={`الإجمالي ${(Number(data.sessionPrice ?? 0) * data.plannedSessions).toLocaleString("en-US")} د.ل`} />
+        <StatCard label="عمولة الجلسة" value={`${Number(data.sessionCommission ?? 0).toLocaleString("en-US")} د.ل`} icon={Percent} tone="warning"
+          hint="قابلة للتعديل من المدير" />
       </div>
 
-      {/* Info card */}
-      <div className="card p-5 mb-6 grid grid-cols-2 gap-4 text-sm">
-        <div><span className="text-gray-500">الحالة:</span> <Badge variant={ps.variant}>{ps.label}</Badge></div>
-        <div><span className="text-gray-500">المعالج:</span> {data.therapist.fullName}</div>
-        <div><span className="text-gray-500">تاريخ البدء:</span> {format(new Date(data.startDate), "d MMM yyyy", { locale: arSA })}</div>
-        <div><span className="text-gray-500">تاريخ الانتهاء المتوقع:</span> {format(new Date(data.expectedEndDate), "d MMM yyyy", { locale: arSA })}</div>
-        <div><span className="text-gray-500">جلسات/أسبوع:</span> {data.sessionsPerWeek}</div>
-        <div>
-          <span className="text-gray-500">قيمة الجلسة:</span>{" "}
-          <span className="font-medium" dir="ltr">{Number(data.sessionPrice ?? 0).toFixed(2)} ر.س</span>
-        </div>
-        <div>
-          <span className="text-gray-500">عمولة الأخصائي للجلسة:</span>{" "}
-          <span className="font-medium text-amber-700" dir="ltr">{Number(data.sessionCommission ?? 0).toFixed(2)} ر.س</span>
-        </div>
-        {data.notes && <div className="col-span-2"><span className="text-gray-500">ملاحظات:</span> {data.notes}</div>}
-        {data.cancellationReason && <div className="col-span-2 text-red-600"><span className="font-medium">سبب الإلغاء:</span> {data.cancellationReason}</div>}
+      {/* Details */}
+      <div className="card mb-6 grid gap-4 p-6 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div><p className="text-gray-500">المعالج</p><p className="mt-1 font-medium text-gray-800">{data.therapist.fullName}</p></div>
+        <div><p className="text-gray-500">تاريخ البدء</p><p className="mt-1 font-medium text-gray-800">{format(new Date(data.startDate), "d MMM yyyy", { locale: arSA })}</p></div>
+        <div><p className="text-gray-500">الانتهاء المتوقع</p><p className="mt-1 font-medium text-gray-800">{format(new Date(data.expectedEndDate), "d MMM yyyy", { locale: arSA })}</p></div>
+        <div><p className="text-gray-500">جلسات أسبوعياً</p><p className="mt-1 font-medium text-gray-800">{data.sessionsPerWeek}</p></div>
+        {data.notes && <div className="sm:col-span-2 lg:col-span-4"><p className="text-gray-500">ملاحظات</p><p className="mt-1 text-gray-800">{data.notes}</p></div>}
+        {data.cancellationReason && (
+          <div className="sm:col-span-2 lg:col-span-4 text-red-600"><span className="font-medium">سبب الإلغاء:</span> {data.cancellationReason}</div>
+        )}
       </div>
 
-      {/* Progress bar */}
-      <div className="mb-6">
-        <div className="flex justify-between text-xs text-gray-500 mb-1">
-          <span>التقدم</span>
-          <span>{data.consumedSessions} / {data.plannedSessions}</span>
+      {/* Sessions */}
+      <div className="card p-6">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-800">جلسات البرنامج</h2>
+          <Badge variant={ps.variant}>{ps.label}</Badge>
         </div>
-        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-          <div className="h-full bg-primary-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+        <div className="mb-5 h-2.5 overflow-hidden rounded-full bg-gray-100">
+          <div className="h-full rounded-full bg-gradient-primary transition-all" style={{ width: `${pct}%` }} />
         </div>
-      </div>
-
-      {/* Sessions list */}
-      <div className="card">
-        <div className="p-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-900">الجلسات ({data.sessions.length})</h2>
-        </div>
-        <div className="divide-y divide-gray-100">
-          {data.sessions.map((s) => {
-            const apt = s.appointments[0];
-            const ss = SESSION_STATUS[s.status] ?? { label: s.status, variant: "gray" };
-            return (
-              <div key={s.id} className="flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-4">
-                  <span className="text-xs font-mono text-gray-400 w-6">{s.programSequenceNumber}</span>
-                  <div>
-                    <Badge variant={ss.variant}>{ss.label}</Badge>
-                    {s.outcomeNotes && <p className="text-xs text-gray-500 mt-0.5">{s.outcomeNotes}</p>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  {apt && (
-                    <span dir="ltr">
-                      {format(new Date(apt.date), "d MMM", { locale: arSA })} {apt.startTime}
-                    </span>
-                  )}
-                  <Link href={`/sessions/${s.id}`} className="text-primary-600 hover:underline text-xs">تفاصيل</Link>
-                </div>
-              </div>
-            );
-          })}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-300 text-gray-500">
+                <th className="whitespace-nowrap px-3 py-3 text-start font-medium">#</th>
+                <th className="whitespace-nowrap px-3 py-3 text-start font-medium">التاريخ</th>
+                <th className="whitespace-nowrap px-3 py-3 text-start font-medium">الوقت</th>
+                <th className="whitespace-nowrap px-3 py-3 text-start font-medium">الحالة</th>
+                <th className="whitespace-nowrap px-3 py-3 text-start font-medium">ملاحظات</th>
+                <th className="px-3 py-3"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-300/70">
+              {data.sessions.map((s) => {
+                const apt = s.appointments[0];
+                const ss = SESSION_STATUS[s.status] ?? { label: s.status, variant: "gray" };
+                return (
+                  <tr key={s.id}>
+                    <td className="px-3 py-3 font-medium text-gray-800">{s.programSequenceNumber}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-gray-800">{apt ? format(new Date(apt.date), "EEEE d MMM", { locale: arSA }) : "—"}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-gray-600">{apt ? range12(apt.startTime, apt.endTime) : "—"}</td>
+                    <td className="px-3 py-3"><Badge variant={ss.variant}>{ss.label}</Badge></td>
+                    <td className="px-3 py-3 text-xs text-gray-500">{s.outcomeNotes ?? ""}</td>
+                    <td className="px-3 py-3 text-end"><Link href={`/sessions/${s.id}`} className="text-xs font-medium text-primary-600 hover:underline">تفاصيل</Link></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -218,8 +210,8 @@ export default function ProgramDetailPage() {
 
       {/* ─── Billing cycles ──────────────────────────────────────── */}
       <div className="card mt-6">
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">الفوترة</h2>
+        <div className="flex items-center justify-between border-b border-gray-300/70 px-6 py-4">
+          <h2 className="text-lg font-semibold text-gray-800">الفوترة</h2>
           <Link href={`/billing/new?programId=${id}`} className="text-xs text-primary-600 hover:underline">
             + دورة فوترة جديدة
           </Link>
@@ -262,9 +254,9 @@ export default function ProgramDetailPage() {
                           </Link>
                           <div className="flex items-center gap-3" dir="ltr">
                             <span className="text-gray-500">
-                              {new Intl.NumberFormat("ar-SA", { style: "currency", currency: "SAR" }).format(Number(inv.paidAmount))}
+                              {moneyLD(Number(inv.paidAmount))}
                               {" / "}
-                              {new Intl.NumberFormat("ar-SA", { style: "currency", currency: "SAR" }).format(Number(inv.totalAmount))}
+                              {moneyLD(Number(inv.totalAmount))}
                             </span>
                             <span className={`px-1.5 py-0.5 rounded ${
                               inv.status === "PAID" ? "bg-green-100 text-green-700" :
@@ -279,9 +271,9 @@ export default function ProgramDetailPage() {
                       <div className="flex justify-between text-xs font-medium px-3 pt-1 text-gray-600">
                         <span>الإجمالي</span>
                         <span dir="ltr">
-                          {new Intl.NumberFormat("ar-SA", { style: "currency", currency: "SAR" }).format(cyclePaid)}
+                          {moneyLD(cyclePaid)}
                           {" / "}
-                          {new Intl.NumberFormat("ar-SA", { style: "currency", currency: "SAR" }).format(cycleTotal)}
+                          {moneyLD(cycleTotal)}
                         </span>
                       </div>
                     </div>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth, ok, notFound, badRequest, forbidden, therapistIdOf } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import { rescheduleSession } from "@/lib/scheduling/SchedulingService";
+import { rescheduleSession, validateAvailability } from "@/lib/scheduling/SchedulingService";
 import { recalcInvoiceForSession, recalcProgramInvoice } from "@/lib/billing/InvoiceService";
 import { syncCommissionLedger, syncProgramCommissionLedger, deleteSourceEntries } from "@/lib/ledger/LedgerService";
 import { z } from "zod";
@@ -25,6 +25,20 @@ const CHARGED_LINE_LABEL: Record<string, string> = {
   CANCELLED_BY_CENTER: "إلغاء من المركز — محتسبة",
 };
 
+/** تعديل الجلسة — any of these may change while the session has not been held yet. */
+const UpdateSchema = z.object({
+  action: z.literal("update"),
+  serviceId: z.string().optional(),
+  therapistId: z.string().optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  durationMin: z.number().int().min(15, "المدة 15 دقيقة على الأقل").max(480).optional(),
+  price: z.number().min(0, "القيمة لا تكون سالبة").optional(),
+});
+
+const toMins = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+const toTime = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
 const RescheduleSchema = z.object({
   action: z.literal("reschedule"),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -39,6 +53,15 @@ const SetChargeSchema = z.object({
 });
 
 const CHARGEABLE_STATUSES = ["ABSENT", "CANCELLED_BY_PATIENT", "CANCELLED_BY_CENTER"];
+
+/** «غياب الجلسة #3 من برنامج» — the start of the ledger line for a programme session event. */
+const OUTCOME_EVENT: Record<string, string> = {
+  COMPLETED: "إكمال",
+  ABSENT: "غياب",
+  CANCELLED_BY_PATIENT: "إلغاء المريض",
+  CANCELLED_BY_CENTER: "إلغاء المركز",
+};
+const sessionEvent = (event: string, seq: number | null) => `${event} الجلسة${seq != null ? ` #${seq}` : ""} من برنامج`;
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const auth = await requireAuth();
@@ -63,7 +86,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       appointments: {
         where: { deletedAt: null },
         include: {
-          therapist: { select: { fullName: true } },
+          therapist: { select: { id: true, fullName: true } },
           room: { select: { name: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -153,7 +176,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         }
       }
 
-      await recalcInvoiceForSession(tx, params.id, target.programId);
+      await recalcInvoiceForSession(
+        tx, params.id, target.programId,
+        sessionEvent(charge ? "احتساب" : "إلغاء احتساب", target.programSequenceNumber)
+      );
 
       await tx.sessionAuditLog.create({
         data: {
@@ -167,6 +193,111 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     });
 
     return ok({ ok: true });
+  }
+
+  if (body.action === "update") {
+    const parsed = UpdateSchema.safeParse(body);
+    if (!parsed.success) return badRequest(parsed.error.flatten().fieldErrors);
+    const d = parsed.data;
+
+    const session = await prisma.session.findUnique({
+      where: { id: params.id },
+      include: {
+        service: { select: { name: true } },
+        commission: { select: { id: true, isPaid: true, therapistId: true } },
+        appointments: { where: { status: "SCHEDULED", deletedAt: null }, orderBy: { createdAt: "desc" }, take: 1 },
+      },
+    });
+    if (!session) return notFound();
+    if (session.status !== "PENDING") return badRequest({ message: "لا يمكن تعديل جلسة سُجّلت نتيجتها" });
+    if (d.serviceId && d.serviceId !== session.serviceId && session.programId) {
+      return badRequest({ message: "خدمة جلسة البرنامج هي خدمة البرنامج نفسه — لا تُغيَّر من الجلسة" });
+    }
+    const newService = d.serviceId && d.serviceId !== session.serviceId
+      ? await prisma.service.findUnique({ where: { id: d.serviceId }, select: { id: true, name: true, isActive: true } })
+      : null;
+    if (d.serviceId && d.serviceId !== session.serviceId && (!newService || !newService.isActive)) {
+      return badRequest({ message: "الخدمة غير موجودة أو معطّلة" });
+    }
+
+    // The slot: whatever was not sent stays as booked
+    const apt = session.appointments[0];
+    const curDate = apt ? apt.date.toISOString().slice(0, 10) : null;
+    const therapistId = d.therapistId ?? apt?.therapistId;
+    const date = d.date ?? curDate;
+    const startTime = d.startTime ?? apt?.startTime;
+    const duration = d.durationMin ?? (apt ? toMins(apt.endTime) - toMins(apt.startTime) : 60);
+    if (!therapistId || !date || !startTime) return badRequest({ message: "حدّد الأخصائي والتاريخ والوقت" });
+    const endTime = toTime(toMins(startTime) + duration);
+    const slotChanged = !apt || therapistId !== apt.therapistId || date !== curDate || startTime !== apt.startTime || endTime !== apt.endTime;
+    const therapistChanged = !!apt && therapistId !== apt.therapistId;
+    const priceChanged = d.price !== undefined && Math.abs(d.price - Number(session.price ?? 0)) > 0.005;
+
+    if (slotChanged) {
+      const check = await validateAvailability(therapistId, session.patientId, date, startTime, endTime, apt?.id);
+      if (!check.ok) return badRequest({ message: check.reason });
+    }
+    if (!slotChanged && !priceChanged && !newService) return ok({ ok: true, changed: false });
+
+    const event = session.programId ? sessionEvent("تعديل", session.programSequenceNumber) : undefined;
+    await prisma.$transaction(async (tx) => {
+      if (slotChanged) {
+        if (apt) await tx.appointment.update({ where: { id: apt.id }, data: { status: "CANCELLED" } });
+        await tx.appointment.create({
+          data: {
+            sessionId: session.id,
+            therapistId,
+            roomId: apt?.roomId ?? null,
+            date: new Date(date),
+            startTime,
+            endTime,
+            status: "SCHEDULED",
+            originalAppointmentId: apt?.id ?? null,
+            isInsuranceCovered: apt?.isInsuranceCovered ?? false,
+            insuranceProviderId: apt?.insuranceProviderId ?? null,
+            scheduledBy: auth.id,
+          },
+        });
+      }
+
+      await tx.session.update({
+        where: { id: session.id },
+        data: {
+          ...(newService ? { serviceId: newService.id } : {}),
+          ...(priceChanged ? { price: d.price } : {}),
+        },
+      });
+
+      // A standalone session's invoice is named after its service
+      if (newService && !session.programId) {
+        await tx.invoice.updateMany({ where: { sessionId: session.id }, data: { notes: `فاتورة جلسة — ${newService.name}` } });
+      }
+
+      // The accrued commission follows the session to its new therapist
+      if (therapistChanged && session.commission && !session.commission.isPaid) {
+        await tx.therapistCommission.update({ where: { id: session.commission.id }, data: { therapistId } });
+      }
+
+      if (priceChanged) await recalcInvoiceForSession(tx, session.id, session.programId, event);
+      if (therapistChanged && session.programId) await syncProgramCommissionLedger(tx, session.programId, event);
+
+      await tx.sessionAuditLog.create({
+        data: {
+          sessionId: session.id,
+          action: "UPDATED",
+          previousValue: {
+            service: session.service.name, price: Number(session.price ?? 0),
+            therapistId: apt?.therapistId ?? null, date: curDate, startTime: apt?.startTime ?? null, endTime: apt?.endTime ?? null,
+          },
+          newValue: {
+            service: newService?.name ?? session.service.name, price: priceChanged ? d.price : Number(session.price ?? 0),
+            therapistId, date, startTime, endTime,
+          },
+          performedBy: auth.id,
+        },
+      });
+    });
+    return ok({ ok: true, changed: true });
   }
 
   if (body.action === "reschedule") {
@@ -255,12 +386,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     // Keep the invoice total in sync with the program/session state.
-    await recalcInvoiceForSession(tx, params.id, session.programId);
+    const event = sessionEvent(OUTCOME_EVENT[d.status], session.programSequenceNumber);
+    await recalcInvoiceForSession(tx, params.id, session.programId, event);
 
     if (d.status !== "COMPLETED") {
       // Absent or cancelled: the session was never delivered, so reverse the accrued commission
       await tx.therapistCommission.deleteMany({ where: { sessionId: params.id, isPaid: false } });
-      await syncCommissionLedger(tx, params.id);
+      await syncCommissionLedger(tx, params.id, event);
     }
 
     // Auto-create therapist commission when session is COMPLETED
@@ -316,7 +448,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
             },
             create: { ...commissionData, isEarned: true },
           });
-          await syncCommissionLedger(tx, params.id);
+          await syncCommissionLedger(tx, params.id, event);
         }
       }
     }
@@ -412,8 +544,8 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
         where: { id: programId },
         data: { plannedSessions: { decrement: 1 } },
       });
-      await recalcProgramInvoice(tx, programId);
-      await syncProgramCommissionLedger(tx, programId);
+      await recalcProgramInvoice(tx, programId, sessionEvent("حذف", seq));
+      await syncProgramCommissionLedger(tx, programId, sessionEvent("حذف", seq));
     }
   });
 

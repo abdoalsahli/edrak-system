@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTreasuryMovement } from "@/lib/billing/TreasuryService";
 import { Badge } from "@/components/ui/Badge";
 import { PrintButton } from "./PrintButton";
+import { Wallet, Landmark } from "lucide-react";
 
 const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 const fmtDate = (iso: string) => {
@@ -51,19 +52,19 @@ export async function TreasuryReport({ from, to, fromIso, toIso }: { from: Date;
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="card p-4">
           <p className="text-xs text-gray-500">رصيد أول المدة</p>
-          <p className="text-xl font-bold text-gray-800 mt-1" dir="ltr">{money(broughtForward)} ر.س</p>
+          <p className="text-xl font-bold text-gray-800 mt-1" dir="ltr">{money(broughtForward)} د.ل</p>
         </div>
         <div className="card p-4">
           <p className="text-xs text-gray-500">إجمالي الوارد</p>
-          <p className="text-xl font-bold text-green-600 mt-1" dir="ltr">{money(totals.totalIn)} ر.س</p>
+          <p className="text-xl font-bold text-green-600 mt-1" dir="ltr">{money(totals.totalIn)} د.ل</p>
         </div>
         <div className="card p-4">
           <p className="text-xs text-gray-500">إجمالي الصادر</p>
-          <p className="text-xl font-bold text-red-600 mt-1" dir="ltr">{money(totals.totalOut)} ر.س</p>
+          <p className="text-xl font-bold text-red-600 mt-1" dir="ltr">{money(totals.totalOut)} د.ل</p>
         </div>
         <div className="card p-4 bg-primary-50 border-primary-200">
           <p className="text-xs text-primary-700">رصيد آخر المدة</p>
-          <p className="text-xl font-bold text-primary-800 mt-1" dir="ltr">{money(totals.closingBalance)} ر.س</p>
+          <p className="text-xl font-bold text-primary-800 mt-1" dir="ltr">{money(totals.closingBalance)} د.ل</p>
         </div>
       </div>
 
@@ -152,7 +153,7 @@ export async function TreasuryReport({ from, to, fromIso, toIso }: { from: Date;
                         href={`/finance/cash-accounts/${a.id}?from=${fromIso}&to=${toIso}`}
                         className="text-primary-600 hover:underline"
                       >
-                        {a.type === "CASH" ? "💵" : "🏦"} {a.name}
+                        <span className="inline-flex items-center gap-2">{a.type === "CASH" ? <Wallet className="size-4 text-gray-500" /> : <Landmark className="size-4 text-gray-500" />}{a.name}</span>
                       </Link>
                     </td>
                     <td className="px-3 py-2" dir="ltr">{money(a.broughtForward)}</td>

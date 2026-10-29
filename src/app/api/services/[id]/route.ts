@@ -28,3 +28,27 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const service = await prisma.service.update({ where: { id: params.id }, data: parsed.data });
   return ok(service);
 }
+
+/**
+ * Delete a service added by mistake. One already used by a session or a programme
+ * stays (their history points at it) — disable it instead.
+ */
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+  const auth = await requireAuth(["MANAGER"]);
+  if (auth instanceof NextResponse) return auth;
+
+  const service = await prisma.service.findUnique({
+    where: { id: params.id },
+    include: { _count: { select: { sessions: true, programs: true } } },
+  });
+  if (!service) return notFound("الخدمة غير موجودة");
+  const { sessions, programs } = service._count;
+  if (sessions + programs > 0) {
+    return badRequest({
+      message: `لا يمكن حذف «${service.name}» لأنها مستخدمة في ${sessions} جلسة و${programs} برنامج — يمكنك تعطيلها بدلاً من ذلك`,
+    });
+  }
+
+  await prisma.service.delete({ where: { id: params.id } });
+  return ok({ deleted: true });
+}

@@ -36,9 +36,8 @@ export default function LoginPage() {
       <div className="card w-full max-w-md p-8">
         {/* Logo / Center Name */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-white text-2xl font-bold">إ</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.jpg" alt="شعار مركز إدراك" className="mx-auto mb-4 size-28 object-contain" />
           <h1 className="text-2xl font-bold text-gray-900">مركز إدراك</h1>
           <p className="text-sm text-gray-500 mt-1">للتأهيل والاستشارات</p>
         </div>

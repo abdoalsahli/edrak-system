@@ -22,7 +22,7 @@ export default function NewSessionPage() {
   const [serviceId, setServiceId] = useState("");
   const [therapistId, setTherapistId] = useState("");
   const [date, setDate] = useState("");
-  const [startTime, setStartTime] = useState("09:00");
+  const [startTime, setStartTime] = useState("15:00");
   const [durationMin, setDurationMin] = useState(60);
   const [notes, setNotes] = useState("");
   const [isInsuranceCovered, setIsInsuranceCovered] = useState(false);

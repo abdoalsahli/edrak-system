@@ -224,7 +224,7 @@ export async function POST(req: Request) {
         totalAmount,          // full program value upfront
         paidAmount:  0,
         status:      totalAmount > 0 ? "ISSUED" : "DRAFT",
-        notes:       `فاتورة برنامج ${service?.name ?? ""} — ${createdSessions} جلسة × ${unitPrice} ر.س`,
+        notes:       `فاتورة برنامج ${service?.name ?? ""} — ${createdSessions} جلسة × ${unitPrice} د.ل`,
       },
     });
 

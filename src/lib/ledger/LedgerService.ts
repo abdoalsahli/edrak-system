@@ -292,7 +292,14 @@ export async function deleteSourceEntries(tx: Tx, sourceType: LedgerSource, sour
  * Keep the patient account in line with an invoice's current value.
  * Call after any change to an invoice's total or status.
  */
-export async function syncInvoiceLedger(tx: Tx, invoiceId: string) {
+/**
+ * `reason` names the event behind a programme adjustment, as the start of the
+ * line: «إنهاء برنامج», «تمديد برنامج», «غياب الجلسة #3 من برنامج»…
+ * Without it the line reads «تعديل …».
+ */
+export type AdjustReason = string;
+
+export async function syncInvoiceLedger(tx: Tx, invoiceId: string, reason?: AdjustReason) {
   const inv = await tx.invoice.findUnique({
     where: { id: invoiceId },
     select: {
@@ -316,7 +323,9 @@ export async function syncInvoiceLedger(tx: Tx, invoiceId: string) {
         OR: closed ? [{ status: "COMPLETED" }, { isCharged: true }] : [{ status: { in: ["PENDING", "COMPLETED"] } }, { isCharged: true }],
       },
     });
-    adjust = `تعديل فاتورة برنامج ${inv.program.service.name} — أصبحت ${n} جلسة بإجمالي ${total}`;
+    adjust = reason
+      ? `${reason} ${inv.program.service.name} — القيمة أصبحت ${n} جلسة بإجمالي ${total}`
+      : `تعديل فاتورة برنامج ${inv.program.service.name} — أصبحت ${n} جلسة بإجمالي ${total}`;
   }
 
   await syncSourceOnAccount(tx, {
@@ -337,10 +346,10 @@ export async function syncInvoiceLedger(tx: Tx, invoiceId: string) {
  * Call after a commission is created, changed or deleted. Keyed by session so a
  * deleted commission row is still reversed correctly.
  */
-export async function syncCommissionLedger(tx: Tx, sessionId: string) {
+export async function syncCommissionLedger(tx: Tx, sessionId: string, reason?: AdjustReason) {
   // A programme's commission is one entry for the whole programme, not one per session
   const owner = await tx.session.findUnique({ where: { id: sessionId }, select: { programId: true } });
-  if (owner?.programId) return syncProgramCommissionLedger(tx, owner.programId);
+  if (owner?.programId) return syncProgramCommissionLedger(tx, owner.programId, reason);
 
   const [commission, session, postedAccounts] = await Promise.all([
     tx.therapistCommission.findUnique({
@@ -391,7 +400,7 @@ export async function syncCommissionLedger(tx: Tx, sessionId: string) {
  * (programme ended early, cancelled, extended, a session deleted…).
  * The per-session commission rows still track what is earned and paid.
  */
-export async function syncProgramCommissionLedger(tx: Tx, programId: string) {
+export async function syncProgramCommissionLedger(tx: Tx, programId: string, reason?: AdjustReason) {
   const [program, rows, postedAccounts] = await Promise.all([
     tx.program.findUnique({
       where: { id: programId },
@@ -432,7 +441,9 @@ export async function syncProgramCommissionLedger(tx: Tx, programId: string) {
       targetNet: -t.total,
       firstDate: new Date(),
       firstDescription: sameUnit ? `${base} — ${n} جلسة × ${r2(t.amounts[0])}` : `${base} — ${n} جلسة`,
-      adjustDescription: n === 0 ? `عكس ${base}` : `تعديل ${base} — أصبحت ${n} جلسة بإجمالي ${t.total}`,
+      adjustDescription: reason
+        ? `${reason} ${program.service.name} — ${program.patient.fullName} — العمولة أصبحت ${n} جلسة بإجمالي ${t.total}`
+        : n === 0 ? `عكس ${base}` : `تعديل ${base} — أصبحت ${n} جلسة بإجمالي ${t.total}`,
     });
   }
 }

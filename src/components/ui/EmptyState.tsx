@@ -1,3 +1,4 @@
+import { Inbox } from "lucide-react";
 export function EmptyState({
   title,
   description,
@@ -9,8 +10,8 @@ export function EmptyState({
 }) {
   return (
     <div className="text-center py-16">
-      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <span className="text-2xl text-gray-400">📭</span>
+      <div className="mx-auto mb-4 grid size-16 place-items-center rounded-full bg-primary-100 text-primary-600">
+        <Inbox className="size-7" />
       </div>
       <h3 className="text-base font-medium text-gray-900 mb-1">{title}</h3>
       {description && <p className="text-sm text-gray-500 mb-4">{description}</p>}

@@ -6,6 +6,8 @@ import { Table, Thead, Th, Tbody, Tr, Td } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { AlertTriangle, Trash2 } from "lucide-react";
+import { readApiError } from "@/lib/apiError";
 
 type Service = {
   id: string;
@@ -19,6 +21,7 @@ type Service = {
   defaultBillingCycleValue?: number | null;
   defaultPrice?: number | null;
   isActive: boolean;
+  usage?: number; // sessions + programmes using it
 };
 
 const emptyForm = (): Omit<Service, "id" | "isActive"> => ({
@@ -88,6 +91,13 @@ export default function ServicesPage() {
     load();
   }
 
+  async function remove(s: Service) {
+    if (!confirm(`حذف الخدمة «${s.name}» نهائياً؟`)) return;
+    const res = await fetch(`/api/services/${s.id}`, { method: "DELETE" });
+    if (!res.ok) alert(await readApiError(res, "تعذّر حذف الخدمة"));
+    load();
+  }
+
   async function toggleActive(s: Service) {
     await fetch(`/api/services/${s.id}`, {
       method: "PATCH",
@@ -111,7 +121,7 @@ export default function ServicesPage() {
 
       {services.some((s) => s.isActive && !(s.defaultPrice != null && Number(s.defaultPrice) > 0)) && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-sm text-red-700">
-          ⚠️ بعض الخدمات النشطة <strong>بدون سعر</strong> — أي جلسة أو برنامج يستخدمها سيُنشئ فاتورة
+          <AlertTriangle className="inline size-4 align-[-3px]" /> بعض الخدمات النشطة <strong>بدون سعر</strong> — أي جلسة أو برنامج يستخدمها سيُنشئ فاتورة
           بقيمة <strong>صفر</strong>. حدّد السعر لكل خدمة، ثم استخدم زر «↻ إعادة حساب» على الفواتير المتأثرة.
         </div>
       )}
@@ -146,10 +156,10 @@ export default function ServicesPage() {
                   </Td>
                   <Td>
                     {s.defaultPrice != null && Number(s.defaultPrice) > 0 ? (
-                      <span className="font-medium" dir="ltr">{Number(s.defaultPrice).toFixed(2)} ر.س</span>
+                      <span className="font-medium" dir="ltr">{Number(s.defaultPrice).toFixed(2)} د.ل</span>
                     ) : (
                       <span className="inline-flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-                        ⚠️ بدون سعر
+                        <span className="inline-flex items-center gap-1"><AlertTriangle className="size-3.5" />بدون سعر</span>
                       </span>
                     )}
                   </Td>
@@ -162,6 +172,14 @@ export default function ServicesPage() {
                       <button onClick={() => toggleActive(s)} className="text-gray-500 hover:underline text-xs">
                         {s.isActive ? "تعطيل" : "تفعيل"}
                       </button>
+                      {/* Only a service nothing refers to can go; a used one is disabled instead */}
+                      {s.usage === 0 ? (
+                        <button onClick={() => remove(s)} className="inline-flex items-center gap-1 text-xs text-red-600 hover:underline">
+                          <Trash2 className="size-3.5" />حذف
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-400" title="مستخدمة في جلسات أو برامج — يمكن تعطيلها فقط">مستخدمة ({s.usage})</span>
+                      )}
                     </div>
                   </Td>
                 </Tr>
@@ -224,7 +242,7 @@ export default function ServicesPage() {
                 produces zero-value invoices. */}
             <div className="col-span-2">
               <label className="label">
-                سعر الجلسة (ر.س) <span className="text-red-500">*</span>
+                سعر الجلسة (د.ل) <span className="text-red-500">*</span>
               </label>
               <input
                 required

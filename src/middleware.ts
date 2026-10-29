@@ -39,5 +39,6 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico).*)"],
+  // Static images (the logo, the tab icon) are public — the login page shows them
+  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpe?g|svg|ico|webp)$).*)"],
 };

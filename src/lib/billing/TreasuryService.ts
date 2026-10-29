@@ -312,3 +312,78 @@ export async function getReceivables(limit?: number) {
     .sort((x, y) => y.balance - x.balance);
   return limit ? rows.slice(0, limit) : rows;
 }
+
+// ─── Dashboard widgets (read-only) ───────────────────────────────────────────
+
+const MONTH_AR = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+
+/** Money received and paid out per month, oldest month first. */
+export async function getMonthlyFlow(months = 6) {
+  const now = new Date();
+  const ranges = Array.from({ length: months }, (_, i) => {
+    const start = new Date(now.getFullYear(), now.getMonth() - (months - 1 - i), 1);
+    const end = new Date(start.getFullYear(), start.getMonth() + 1, 0, 23, 59, 59);
+    return { start, end, label: MONTH_AR[start.getMonth()] };
+  });
+  const rows = await Promise.all(
+    ranges.map(async ({ start, end }) => {
+      const [inn, out] = await Promise.all([
+        prisma.payment.aggregate({ _sum: { amount: true }, where: { paymentDate: { gte: start, lte: end } } }),
+        prisma.disbursement.aggregate({ _sum: { amount: true }, where: { paymentDate: { gte: start, lte: end } } }),
+      ]);
+      return { received: r2(Number(inn._sum.amount ?? 0)), paid: r2(Number(out._sum.amount ?? 0)) };
+    })
+  );
+  return {
+    labels: ranges.map((r) => r.label),
+    received: rows.map((r) => r.received),
+    paid: rows.map((r) => r.paid),
+  };
+}
+
+export type RecentDocument = {
+  id: string;
+  kind: "RECEIPT" | "PAYMENT" | "SETTLEMENT";
+  voucherNumber: string;
+  party: string;
+  date: string; // YYYY-MM-DD
+  amount: number; // signed: + money in, − money out, settlements unsigned
+  createdAt: Date;
+};
+
+/** The latest receipts, payment vouchers and settlements, newest first. */
+export async function getRecentDocuments(limit = 6): Promise<RecentDocument[]> {
+  const [receipts, payments, settlements] = await Promise.all([
+    prisma.payment.findMany({
+      take: limit, orderBy: { createdAt: "desc" },
+      select: { id: true, voucherNumber: true, paymentDate: true, amount: true, createdAt: true, account: { select: { name: true } }, patient: { select: { fullName: true } } },
+    }),
+    prisma.disbursement.findMany({
+      take: limit, orderBy: { createdAt: "desc" },
+      select: { id: true, voucherNumber: true, paymentDate: true, amount: true, createdAt: true, description: true, account: { select: { name: true } } },
+    }),
+    prisma.settlement.findMany({
+      take: limit, orderBy: { createdAt: "desc" },
+      select: {
+        id: true, voucherNumber: true, date: true, amount: true, createdAt: true, description: true,
+        debitAccount: { select: { name: true } }, creditAccount: { select: { name: true } },
+      },
+    }),
+  ]);
+  const day = (d: Date) => d.toISOString().slice(0, 10);
+  const docs: RecentDocument[] = [
+    ...receipts.map((r) => ({
+      id: r.id, kind: "RECEIPT" as const, voucherNumber: r.voucherNumber, date: day(r.paymentDate), createdAt: r.createdAt,
+      party: r.account?.name ?? r.patient?.fullName ?? "—", amount: Number(r.amount),
+    })),
+    ...payments.map((p) => ({
+      id: p.id, kind: "PAYMENT" as const, voucherNumber: p.voucherNumber, date: day(p.paymentDate), createdAt: p.createdAt,
+      party: p.account?.name ?? p.description, amount: -Number(p.amount),
+    })),
+    ...settlements.map((s) => ({
+      id: s.id, kind: "SETTLEMENT" as const, voucherNumber: s.voucherNumber, date: day(s.date), createdAt: s.createdAt,
+      party: s.creditAccount?.name ?? s.debitAccount?.name ?? s.description, amount: Number(s.amount),
+    })),
+  ];
+  return docs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, limit);
+}

@@ -3,10 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionTabs, DOCUMENT_TABS } from "@/components/ui/SectionTabs";
 import { Table, Thead, Th, Tbody, Tr, Td } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { VoucherModal } from "@/components/finance/VoucherModal";
+import { Printer, AlertTriangle } from "lucide-react";
 
 type Receipt = {
   id: string;
@@ -31,7 +33,7 @@ function fmtDate(iso: string) {
 }
 
 const fmt = (n: number) =>
-  `${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ر.س`;
+  `${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} د.ل`;
 
 export default function ReceiptsPage() {
   const [rows, setRows] = useState<Receipt[]>([]);
@@ -83,15 +85,16 @@ export default function ReceiptsPage() {
   return (
     <div>
       <PageHeader
-        title="سندات القبض"
+        title="السندات والتسويات"
         description="كل المبالغ المستلمة من المرضى"
         action={
           <div className="flex gap-2">
-            <button onClick={() => window.print()} className="btn-secondary text-sm">🖨 طباعة</button>
+            <button onClick={() => window.print()} className="btn-secondary text-sm"><Printer className="size-4" />طباعة</button>
             <button onClick={() => setCreating(true)} className="btn-primary text-sm">+ سند قبض</button>
           </div>
         }
       />
+      <SectionTabs tabs={DOCUMENT_TABS} />
 
       {/* Totals */}
       <div className="grid grid-cols-3 gap-4 mb-4">
@@ -200,7 +203,7 @@ export default function ReceiptsPage() {
                           {r.cashAccount.name}
                         </Link>
                       ) : (
-                        <span className="text-red-500 text-xs">⚠️ غير مرتبط</span>
+                        <span className="inline-flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="size-3.5" />غير مرتبط</span>
                       )}
                     </Td>
                     <Td className="text-sm text-gray-500">{r.receivedByUser.name}</Td>

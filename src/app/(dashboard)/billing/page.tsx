@@ -6,6 +6,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionTabs, DOCUMENT_TABS } from "@/components/ui/SectionTabs";
 import { Table, Thead, Th, Tbody, Tr, Td } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -69,19 +70,20 @@ export default async function BillingPage({ searchParams }: { searchParams: { pa
   return (
     <div>
       <PageHeader
-        title="الفواتير والمدفوعات"
+        title="السندات والتسويات"
         action={<Link href="/billing/new" className="btn-primary">+ فاتورة جديدة</Link>}
       />
+      <SectionTabs tabs={DOCUMENT_TABS} />
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
         <div className="card p-4">
           <p className="text-xs text-gray-500">المستحق</p>
-          <p className="text-xl font-bold text-red-600 mt-1">{outstandingAmount.toLocaleString("en-US")} ر.س</p>
+          <p className="text-xl font-bold text-red-600 mt-1">{outstandingAmount.toLocaleString("en-US")} د.ل</p>
         </div>
         <div className="card p-4">
           <p className="text-xs text-gray-500">محصّل هذا الشهر</p>
-          <p className="text-xl font-bold text-green-600 mt-1">{collectedMonth.toLocaleString("en-US")} ر.س</p>
+          <p className="text-xl font-bold text-green-600 mt-1">{collectedMonth.toLocaleString("en-US")} د.ل</p>
         </div>
         <div className="card p-4">
           <p className="text-xs text-gray-500">إجمالي الفواتير</p>
@@ -137,7 +139,7 @@ export default async function BillingPage({ searchParams }: { searchParams: { pa
                         ? `جلسة — ${inv.standaloneSession.service.name}`
                         : inv.billingCycle?.program.service.name ?? "فاتورة يدوية"}
                     </Td>
-                    <Td dir="ltr" className="text-sm">{Number(inv.totalAmount).toLocaleString("en-US")} ر.س</Td>
+                    <Td dir="ltr" className="text-sm">{Number(inv.totalAmount).toLocaleString("en-US")} د.ل</Td>
                     <Td>{format(new Date(inv.issueDate), "d MMM yyyy", { locale: arSA })}</Td>
                     <Td><Badge variant={st.variant}>{st.label}</Badge></Td>
                     <Td>

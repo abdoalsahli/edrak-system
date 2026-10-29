@@ -88,6 +88,8 @@ model User {
 
   // Set when role = THERAPIST
   therapist Therapist?
+  // Set for the other staff (manager, reception, accounts)
+  employee  Employee?
 
   // Audit references
   createdSessions       Session[]              @relation("SessionCreatedBy")
@@ -171,6 +173,22 @@ model Therapist {
   user                  User?                           @relation(fields: [userId], references: [id])
 
   @@map("therapists")
+}
+
+/// موظف — staff who are not therapists (reception, accounts, management, …).
+/// A login is optional: someone who never uses the system has no user.
+model Employee {
+  id        String   @id @default(cuid())
+  fullName  String
+  jobTitle  String?
+  phone     String?
+  isActive  Boolean  @default(true)
+  userId    String?  @unique
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("employees")
 }
 
 // ─── CONFIGURATION ────────────────────────────────────────────────────────────

@@ -5,11 +5,14 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Table, Thead, Th, Tbody, Tr, Td } from "@/components/ui/Table";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { FileText, CalendarPlus, User, Phone, IdCard, MapPin, Cake } from "lucide-react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
+import { to12 } from "@/lib/time12";
 
-const SESSION_STATUS_LABELS: Record<string, { label: string; variant: "success" | "warning" | "danger" | "gray" | "info" }> = {
-  PENDING: { label: "مجدولة", variant: "info" },
+const SESSION_STATUS_LABELS: Record<string, { label: string; variant: "default" | "success" | "warning" | "danger" | "gray" | "info" }> = {
+  PENDING: { label: "مجدولة", variant: "default" },
   COMPLETED: { label: "مكتملة", variant: "success" },
   ABSENT: { label: "غياب", variant: "danger" },
   CANCELLED_BY_PATIENT: { label: "ألغاها المريض", variant: "warning" },
@@ -36,7 +39,12 @@ export default async function PatientProfilePage({
     include: {
       guardian: true,
       programs: {
-        include: { service: true, therapist: true },
+        include: {
+          service: true,
+          therapist: true,
+          // delivered (or charged-absent) sessions, for the progress bar
+          _count: { select: { sessions: { where: { status: { in: ["COMPLETED", "ABSENT"] } } } } },
+        },
         orderBy: { createdAt: "desc" },
       },
       sessions: {
@@ -72,177 +80,155 @@ export default async function PatientProfilePage({
   const t = (ledgerAccount && sums?.get(ledgerAccount.id)) || { debit: 0, credit: 0 };
   const totalOutstanding = ledgerAccount ? naturalBalance(ledgerAccount.nature, t.debit, t.credit) : 0;
 
+  const age = patient.dob ? Math.floor((Date.now() - new Date(patient.dob).getTime()) / (365.25 * 24 * 3600 * 1000)) : null;
+  const typeLabel = patient.patientType === "ADULT" ? "بالغ" : "طفل";
+  const canSeeMoney = session.user.role !== "RECEPTIONIST";
+
   return (
-    <div className="max-w-5xl space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-primary-100 rounded-2xl flex items-center justify-center text-2xl">
-            👤
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{patient.fullName}</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge variant="gray">{patient.patientType === "ADULT" ? "بالغ" : "طفل"}</Badge>
-              <Badge variant={patient.isActive ? "success" : "gray"}>
-                {patient.isActive ? "نشط" : "غير نشط"}
-              </Badge>
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          {/* The statement is financial data — accountants and managers only */}
-          {session.user.role !== "RECEPTIONIST" && (
-            <Link href={`/patients/${patient.id}/statement`} className="btn-primary">
-              📄 كشف الحساب
-            </Link>
-          )}
-          <Link href={`/patients/${patient.id}/edit`} className="btn-secondary">
-            تعديل
-          </Link>
-        </div>
-      </div>
+    <div>
+      <PageHeader
+        title={patient.fullName}
+        description="ملف المريض"
+        action={
+          <>
+            {/* The statement is financial data — accountants and managers only */}
+            {canSeeMoney && (
+              <Link href={`/patients/${patient.id}/statement`} className="btn-secondary"><FileText className="size-4" />كشف الحساب</Link>
+            )}
+            <Link href="/sessions" className="btn-primary"><CalendarPlus className="size-4" />حجز جلسة</Link>
+          </>
+        }
+      />
 
-      {/* Info grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="card p-5">
-          <h2 className="font-semibold text-gray-900 mb-3">البيانات الشخصية</h2>
-          <dl className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-gray-500">تاريخ الميلاد</dt>
-              <dd className="font-medium">{dobFormatted}</dd>
+      <div className="grid gap-5 lg:grid-cols-3">
+        {/* Profile column */}
+        <div className="space-y-5">
+          <div className="card p-6">
+            <div className="flex flex-col items-center text-center">
+              <div className="grid size-20 place-items-center rounded-full bg-gradient-primary text-3xl font-bold text-white">
+                {patient.fullName.charAt(0)}
+              </div>
+              <p className="mt-3 text-lg font-semibold text-gray-800">{patient.fullName}</p>
+              <div className="mt-2 flex flex-wrap justify-center gap-2">
+                <Badge variant="info">{typeLabel}{age != null ? ` · ${age} سنوات` : ""}</Badge>
+                {!patient.isActive && <Badge variant="gray">غير نشط</Badge>}
+              </div>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-gray-500">الجنس</dt>
-              <dd className="font-medium">{genderLabel}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-gray-500">الهاتف</dt>
-              <dd className="font-medium" dir="ltr">{patient.phone ?? "—"}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-gray-500">رقم الهوية</dt>
-              <dd className="font-medium" dir="ltr">{patient.nationalId ?? "—"}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-gray-500">العنوان</dt>
-              <dd className="font-medium">{patient.address ?? "—"}</dd>
-            </div>
-          </dl>
-        </div>
 
-        {patient.guardian && (
-          <div className="card p-5">
-            <h2 className="font-semibold text-gray-900 mb-3">ولي الأمر</h2>
-            <dl className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-gray-500">الاسم</dt>
-                <dd className="font-medium">{patient.guardian.fullName}</dd>
+            <dl className="mt-6 space-y-3 text-sm">
+              {patient.guardian && (
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="flex items-center gap-2 text-gray-500"><User className="size-4" />ولي الأمر</dt>
+                  <dd className="font-medium text-gray-800">{patient.guardian.fullName}</dd>
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-3">
+                <dt className="flex items-center gap-2 text-gray-500"><Phone className="size-4" />الهاتف</dt>
+                <dd className="font-medium text-gray-800"><bdi>{patient.phone ?? patient.guardian?.phone ?? "—"}</bdi></dd>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-gray-500">صلة القرابة</dt>
-                <dd className="font-medium">{patient.guardian.relationship ?? "—"}</dd>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="flex items-center gap-2 text-gray-500"><Cake className="size-4" />تاريخ الميلاد</dt>
+                <dd className="font-medium text-gray-800">{dobFormatted}</dd>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-gray-500">الهاتف</dt>
-                <dd className="font-medium" dir="ltr">{patient.guardian.phone ?? "—"}</dd>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="flex items-center gap-2 text-gray-500"><User className="size-4" />الجنس</dt>
+                <dd className="font-medium text-gray-800">{genderLabel}</dd>
               </div>
+              {patient.nationalId && (
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="flex items-center gap-2 text-gray-500"><IdCard className="size-4" />رقم الهوية</dt>
+                  <dd className="font-medium text-gray-800"><bdi>{patient.nationalId}</bdi></dd>
+                </div>
+              )}
+              {patient.address && (
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="flex items-center gap-2 text-gray-500"><MapPin className="size-4" />العنوان</dt>
+                  <dd className="font-medium text-gray-800">{patient.address}</dd>
+                </div>
+              )}
             </dl>
-          </div>
-        )}
 
-        <div className="card p-5">
-          <h2 className="font-semibold text-gray-900 mb-3">ملخص مالي</h2>
-          <div className="text-3xl font-bold text-red-600">
-            {totalOutstanding.toFixed(2)} ر.س
+            <div className="mt-6 rounded-2xl bg-gradient-primary p-5 text-white">
+              <p className="text-sm opacity-80">{totalOutstanding < 0 ? "رصيد لصالح المريض" : "الرصيد المستحق"}</p>
+              <p className="mt-1 text-3xl font-bold">{Math.abs(totalOutstanding).toLocaleString("en-US", { maximumFractionDigits: 2 })} د.ل</p>
+              {canSeeMoney && (
+                <Link href={`/patients/${patient.id}/statement`} className="mt-2 inline-block text-xs underline opacity-80 hover:opacity-100">
+                  عرض كشف الحساب التفصيلي
+                </Link>
+              )}
+            </div>
           </div>
-          <p className="text-sm text-gray-500 mt-1">الرصيد المستحق</p>
-          {session.user.role !== "RECEPTIONIST" && (
-            <Link
-              href={`/patients/${patient.id}/statement`}
-              className="inline-block text-sm text-primary-600 hover:underline mt-3"
-            >
-              عرض كشف الحساب التفصيلي ←
-            </Link>
-          )}
+        </div>
+
+        {/* Programmes and sessions */}
+        <div className="space-y-5 lg:col-span-2">
+          <div className="card p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-800">البرامج العلاجية</h2>
+              <Link href={`/programs/new?patientId=${patient.id}`} className="text-sm text-primary-600 hover:underline">+ برنامج جديد</Link>
+            </div>
+            {patient.programs.length === 0 ? (
+              <p className="py-8 text-center text-sm text-gray-400">لا توجد برامج مسجلة</p>
+            ) : (
+              <div className="space-y-3">
+                {patient.programs.map((prog) => {
+                  const st = PROGRAM_STATUS_LABELS[prog.status];
+                  const done = prog._count.sessions;
+                  const pct = prog.plannedSessions > 0 ? Math.min(100, Math.round((done / prog.plannedSessions) * 100)) : 0;
+                  return (
+                    <Link key={prog.id} href={`/programs/${prog.id}`} className="block rounded-2xl border border-gray-300 p-4 transition hover:bg-gray-50">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-medium text-gray-800">{prog.service.name}</p>
+                        <Badge variant={st.variant}>{st.label}</Badge>
+                      </div>
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100">
+                        <div className="h-full rounded-full bg-gradient-primary" style={{ width: `${pct}%` }} />
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500">
+                        {done} من {prog.plannedSessions} جلسة · {prog.therapist.fullName} · منذ {format(new Date(prog.startDate), "d/M/yyyy")}
+                      </p>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="card p-6">
+            <h2 className="mb-2 text-lg font-semibold text-gray-800">الجلسات الفردية</h2>
+            {patient.sessions.length === 0 ? (
+              <p className="py-8 text-center text-sm text-gray-400">لا توجد جلسات فردية</p>
+            ) : (
+              <Table>
+                <Thead>
+                  <tr>
+                    <Th>الخدمة</Th>
+                    <Th>اليوم</Th>
+                    <Th>الوقت</Th>
+                    {canSeeMoney && <Th>القيمة</Th>}
+                    <Th>الحالة</Th>
+                  </tr>
+                </Thead>
+                <Tbody>
+                  {patient.sessions.map((s) => {
+                    const apt = s.appointments[0];
+                    const st = SESSION_STATUS_LABELS[s.status];
+                    return (
+                      <Tr key={s.id}>
+                        <Td><Link href={`/sessions/${s.id}`} className="font-medium text-gray-800 hover:text-primary-600">{s.service.name}</Link></Td>
+                        <Td>{apt?.date ? format(new Date(apt.date), "EEEE d/M/yyyy", { locale: ar }) : "—"}</Td>
+                        <Td>{to12(apt?.startTime)}</Td>
+                        {canSeeMoney && <Td>{Number(s.price ?? 0).toLocaleString("en-US")} د.ل</Td>}
+                        <Td><Badge variant={st.variant}>{st.label}</Badge></Td>
+                      </Tr>
+                    );
+                  })}
+                </Tbody>
+              </Table>
+            )}
+          </div>
         </div>
       </div>
-
-      {/* Programs */}
-      <div className="card">
-        <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-900">البرامج العلاجية</h2>
-          <Link href={`/programs/new?patientId=${patient.id}`} className="btn-primary text-xs px-3 py-1.5">
-            + برنامج جديد
-          </Link>
-        </div>
-        {patient.programs.length === 0 ? (
-          <p className="text-sm text-gray-500 text-center py-8">لا توجد برامج مسجلة</p>
-        ) : (
-          <Table>
-            <Thead>
-              <tr>
-                <Th>الخدمة</Th>
-                <Th>المعالج</Th>
-                <Th>تاريخ البدء</Th>
-                <Th>الجلسات</Th>
-                <Th>الحالة</Th>
-                <Th></Th>
-              </tr>
-            </Thead>
-            <Tbody>
-              {patient.programs.map((prog) => {
-                const s = PROGRAM_STATUS_LABELS[prog.status];
-                return (
-                  <Tr key={prog.id}>
-                    <Td className="font-medium">{prog.service.name}</Td>
-                    <Td>{prog.therapist.fullName}</Td>
-                    <Td>{format(new Date(prog.startDate), "d/M/yyyy")}</Td>
-                    <Td>{prog.plannedSessions}</Td>
-                    <Td><Badge variant={s.variant}>{s.label}</Badge></Td>
-                    <Td>
-                      <Link href={`/programs/${prog.id}`} className="text-primary-600 hover:underline text-xs">
-                        عرض
-                      </Link>
-                    </Td>
-                  </Tr>
-                );
-              })}
-            </Tbody>
-          </Table>
-        )}
-      </div>
-
-      {/* Standalone sessions */}
-      {patient.sessions.length > 0 && (
-        <div className="card">
-          <div className="p-5 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-900">الجلسات الفردية</h2>
-          </div>
-          <Table>
-            <Thead>
-              <tr>
-                <Th>الخدمة</Th>
-                <Th>الموعد</Th>
-                <Th>الحالة</Th>
-              </tr>
-            </Thead>
-            <Tbody>
-              {patient.sessions.map((s) => {
-                const apt = s.appointments[0];
-                const st = SESSION_STATUS_LABELS[s.status];
-                return (
-                  <Tr key={s.id}>
-                    <Td>{s.service.name}</Td>
-                    <Td>{apt ? `${apt.date ? format(new Date(apt.date), "d/M/yyyy") : "—"} ${apt.startTime}` : "—"}</Td>
-                    <Td><Badge variant={st.variant}>{st.label}</Badge></Td>
-                  </Tr>
-                );
-              })}
-            </Tbody>
-          </Table>
-        </div>
-      )}
     </div>
   );
 }

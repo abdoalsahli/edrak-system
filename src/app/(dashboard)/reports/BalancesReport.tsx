@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { AccountKind } from "@prisma/client";
 import { getAccountBalances, type LedgerBalanceRow } from "@/lib/billing/TreasuryService";
 import { PrintButton } from "./PrintButton";
+import { Wallet, Landmark } from "lucide-react";
 
 const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 const fmtDate = (iso: string) => {
@@ -32,25 +33,25 @@ export async function BalancesReport({ asOf, asOfIso }: { asOf: Date; asOfIso: s
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="card p-4">
           <p className="text-xs text-gray-500">مستحق على المرضى</p>
-          <p className="text-xl font-bold text-red-600 mt-1" dir="ltr">{money(totals.receivable)} ر.س</p>
+          <p className="text-xl font-bold text-red-600 mt-1" dir="ltr">{money(totals.receivable)} د.ل</p>
           {totals.patientCredit > 0 && (
             <p className="text-xs text-amber-700 mt-1">أرصدة دائنة للمرضى: {money(totals.patientCredit)}</p>
           )}
         </div>
         <div className="card p-4">
           <p className="text-xs text-gray-500">مستحق للأخصائيين</p>
-          <p className="text-xl font-bold text-amber-700 mt-1" dir="ltr">{money(totals.payable)} ر.س</p>
+          <p className="text-xl font-bold text-amber-700 mt-1" dir="ltr">{money(totals.payable)} د.ل</p>
           {totals.therapistAdvance > 0 && (
             <p className="text-xs text-blue-700 mt-1">سُلف على الأخصائيين: {money(totals.therapistAdvance)}</p>
           )}
         </div>
         <div className="card p-4">
           <p className="text-xs text-gray-500">إجمالي المصروفات</p>
-          <p className="text-xl font-bold text-gray-800 mt-1" dir="ltr">{money(totals.expenses)} ر.س</p>
+          <p className="text-xl font-bold text-gray-800 mt-1" dir="ltr">{money(totals.expenses)} د.ل</p>
         </div>
         <div className="card p-4 bg-primary-50 border-primary-200">
           <p className="text-xs text-primary-700">إجمالي أرصدة الصناديق</p>
-          <p className="text-xl font-bold text-primary-800 mt-1" dir="ltr">{money(totals.cash)} ر.س</p>
+          <p className="text-xl font-bold text-primary-800 mt-1" dir="ltr">{money(totals.cash)} د.ل</p>
         </div>
       </div>
 
@@ -65,7 +66,7 @@ export async function BalancesReport({ asOf, asOfIso }: { asOf: Date; asOfIso: s
           <tbody>
             {cashAccounts.map((a) => (
               <tr key={a.id} className={`border-t border-gray-50 ${!a.isActive ? "opacity-60" : ""}`}>
-                <td className="px-4 py-2.5 font-medium">{a.type === "CASH" ? "💵" : "🏦"} {a.name}</td>
+                <td className="px-4 py-2.5 font-medium"><span className="inline-flex items-center gap-2">{a.type === "CASH" ? <Wallet className="size-4 text-gray-500" /> : <Landmark className="size-4 text-gray-500" />}{a.name}</span></td>
                 <td className={`px-4 py-2.5 font-semibold ${a.balance < 0 ? "text-red-600" : "text-gray-800"}`} dir="ltr">
                   {money(a.balance)}
                 </td>

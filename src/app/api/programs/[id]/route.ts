@@ -169,8 +169,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       });
 
       // Bill the added sessions and add their commission in one adjustment
-      await recalcProgramInvoice(tx, params.id);
-      await syncProgramCommissionLedger(tx, params.id);
+      await recalcProgramInvoice(tx, params.id, "تمديد برنامج");
+      await syncProgramCommissionLedger(tx, params.id, "تمديد برنامج");
     });
     return ok({ ok: true });
   }
@@ -268,8 +268,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         data: { sessionPrice: d.sessionPrice, sessionCommission: d.sessionCommission },
       });
       // One adjustment on the patient account (invoice) and one on the therapist account
-      const invoice = await recalcProgramInvoice(tx, params.id);
-      await syncProgramCommissionLedger(tx, params.id);
+      const invoice = await recalcProgramInvoice(tx, params.id, "تعديل قيمة برنامج");
+      await syncProgramCommissionLedger(tx, params.id, "تعديل قيمة برنامج");
       return { updated: ids.length, invoice };
     });
     return ok({ ok: true, ...result });
@@ -302,10 +302,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       await tx.therapistCommission.deleteMany({
         where: { sessionId: { in: undelivered.map((x) => x.id) }, isPaid: false },
       });
-      await syncProgramCommissionLedger(tx, params.id);
+      await syncProgramCommissionLedger(tx, params.id, "إنهاء برنامج");
 
       // Final settlement: bill only the sessions actually delivered
-      return recalcProgramInvoice(tx, params.id);
+      return recalcProgramInvoice(tx, params.id, "إنهاء برنامج");
     });
     return ok({ ok: true, invoice: result });
   }
@@ -344,12 +344,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         await tx.therapistCommission.deleteMany({
           where: { sessionId: { in: pendingIds }, isPaid: false },
         });
-        await syncProgramCommissionLedger(tx, params.id);
+        await syncProgramCommissionLedger(tx, params.id, "إلغاء برنامج");
       }
 
       // Settle the invoice at the value actually delivered.
       // (Not voided — sessions already completed remain payable.)
-      return recalcProgramInvoice(tx, params.id);
+      return recalcProgramInvoice(tx, params.id, "إلغاء برنامج");
     });
 
     return ok({ ok: true, invoice: result });

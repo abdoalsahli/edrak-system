@@ -5,6 +5,10 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { VoucherModal, type VoucherKind } from "@/components/finance/VoucherModal";
+import { StatCard } from "@/components/ui/StatCard";
+import {
+  ArrowDownCircle, ArrowUpCircle, Scale, ArrowLeftRight, Wallet, ReceiptText, HandCoins, Stethoscope, type LucideIcon,
+} from "lucide-react";
 
 type Overview = {
   totals: {
@@ -30,13 +34,11 @@ type Overview = {
 };
 
 const money = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
-const fmtDate = (iso: string) => { const d = new Date(iso); return `${d.getDate()} ${MONTH_AR[d.getMonth()]}`; };
 
 const DOC = {
-  RECEIPT: { label: "سند قبض", variant: "success" as const, sign: "+" },
-  PAYMENT: { label: "سند صرف", variant: "danger" as const, sign: "−" },
-  SETTLEMENT: { label: "تسوية", variant: "gray" as const, sign: "" },
+  RECEIPT: { label: "قبض", variant: "success" as const },
+  PAYMENT: { label: "صرف", variant: "danger" as const },
+  SETTLEMENT: { label: "تسوية", variant: "warning" as const },
 };
 
 /** لوحة المالية — the place to start: balances at a glance and every voucher one click away. */
@@ -50,101 +52,111 @@ export default function FinanceDashboard() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  if (!data) return <div className="text-gray-400 p-8 text-center">جارٍ التحميل...</div>;
+  if (!data) return <div className="p-8 text-center text-gray-400">جارٍ التحميل...</div>;
   const t = data.totals;
+  const boxes = data.cashAccounts.filter((b) => b.isActive);
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="لوحة المالية" description="الأرصدة في لمحة، وكل السندات من مكان واحد" />
+    <div>
+      <PageHeader title="المالية" description="نظام الحسابات الجارية — الأرصدة تُقرأ من القيود المرحّلة" />
 
       {/* Quick actions */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         {([
-          ["receipt", "+ سند قبض", "استلام مبلغ على حساب مريض أو أي حساب", "border-green-200 hover:bg-green-50 text-green-800"],
-          ["payment", "− سند صرف", "صرف لأخصائي، استرداد لمريض، أو مصروف", "border-red-200 hover:bg-red-50 text-red-800"],
-          ["settlement", "⇄ تسوية", "خصم، إعدام دين، تصحيح، أو تحويل بين حسابين", "border-gray-200 hover:bg-gray-50 text-gray-800"],
-        ] as [VoucherKind, string, string, string][]).map(([k, title, hint, cls]) => (
-          <button key={k} onClick={() => setVoucher(k)} className={`card p-4 text-start border-2 transition-colors ${cls}`}>
-            <p className="text-lg font-bold">{title}</p>
-            <p className="text-xs opacity-75 mt-1">{hint}</p>
+          ["receipt", "سند قبض", ArrowDownCircle, "bg-green-100 text-green-500"],
+          ["payment", "سند صرف", ArrowUpCircle, "bg-red-100 text-red-500"],
+          ["settlement", "تسوية", Scale, "bg-amber-100 text-amber-500"],
+        ] as [VoucherKind, string, LucideIcon, string][]).map(([k, title, Icon, tone]) => (
+          <button key={k} onClick={() => setVoucher(k)} className="card flex flex-col items-center gap-3 p-5 transition hover:-translate-y-0.5">
+            <span className={`grid size-14 place-items-center rounded-2xl ${tone}`}><Icon className="size-7" /></span>
+            <span className="text-sm font-semibold text-gray-800">{title}</span>
           </button>
         ))}
+        <Link href="/finance/cash" className="card flex flex-col items-center gap-3 p-5 transition hover:-translate-y-0.5">
+          <span className="grid size-14 place-items-center rounded-2xl bg-cyan-100 text-cyan-500"><ArrowLeftRight className="size-7" /></span>
+          <span className="text-sm font-semibold text-gray-800">تحويل بين صندوقين</span>
+        </Link>
       </div>
 
       {/* Headline figures */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="card p-4 bg-primary-50 border-primary-200">
-          <p className="text-xs text-primary-700">النقد في الصناديق</p>
-          <p className="text-xl font-bold text-primary-800 mt-1" dir="ltr">{money(t.cash)}</p>
-        </div>
-        <Link href="/finance/accounts?kind=PATIENT" className="card p-4 hover:bg-gray-50">
-          <p className="text-xs text-gray-500">مستحق على المرضى</p>
-          <p className="text-xl font-bold text-red-600 mt-1" dir="ltr">{money(t.receivable)}</p>
+      <div className="mb-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="المقبوض هذا الشهر" value={`${money(t.monthIn)} د.ل`} icon={Wallet} tone="success" />
+        <StatCard label="المصروف هذا الشهر" value={`${money(t.monthOut)} د.ل`} icon={ReceiptText} tone="danger" />
+        <Link href="/finance/accounts?kind=PATIENT" className="block transition hover:-translate-y-0.5">
+          <StatCard label="المستحق على المرضى" value={`${money(t.receivable)} د.ل`} icon={HandCoins} tone="warning" />
         </Link>
-        <Link href="/finance/accounts?kind=THERAPIST" className="card p-4 hover:bg-gray-50">
-          <p className="text-xs text-gray-500">مستحق للأخصائيين</p>
-          <p className="text-xl font-bold text-amber-700 mt-1" dir="ltr">{money(t.payable)}</p>
+        <Link href="/finance/accounts?kind=THERAPIST" className="block transition hover:-translate-y-0.5">
+          <StatCard label="المستحق للأخصائيين" value={`${money(t.payable)} د.ل`} icon={Stethoscope} tone="primary" />
         </Link>
-        <div className="card p-4">
-          <p className="text-xs text-gray-500">هذا الشهر: وارد / صادر</p>
-          <p className="text-lg font-bold mt-1" dir="ltr">
-            <span className="text-green-600">{money(t.monthIn)}</span>
-            <span className="text-gray-300 mx-1">/</span>
-            <span className="text-red-600">{money(t.monthOut)}</span>
-          </p>
-        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Cash boxes */}
-        <div className="card overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-semibold text-sm">الصناديق والبنوك</h2>
-            <Link href="/finance/cash" className="text-xs text-primary-600 hover:underline">إدارة ←</Link>
+      <div className="grid gap-5 xl:grid-cols-3">
+        {/* Cash boxes — the first one highlighted */}
+        <section className="card p-5">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold text-gray-800">الصناديق</h2>
+            <Link href="/finance/cash" className="text-sm text-primary-600 hover:underline">إدارة</Link>
           </div>
-          <div className="divide-y divide-gray-50">
-            {data.cashAccounts.map((b) => (
-              <Link key={b.id} href={`/finance/accounts/${b.ledgerAccountId}`}
-                className={`flex items-center justify-between px-4 py-3 hover:bg-gray-50 ${!b.isActive ? "opacity-50" : ""}`}>
-                <span className="text-sm">{b.type === "CASH" ? "💵" : "🏦"} {b.name}</span>
-                <span className={`font-semibold text-sm ${b.balance < 0 ? "text-red-600" : "text-gray-800"}`} dir="ltr">{money(b.balance)}</span>
+          <div className="space-y-3">
+            {boxes.length === 0 && <p className="py-6 text-center text-sm text-gray-400">لا توجد صناديق</p>}
+            {boxes.map((b, i) => (
+              <Link
+                key={b.id}
+                href={`/finance/accounts/${b.ledgerAccountId}`}
+                className={i === 0
+                  ? "block rounded-2xl bg-gradient-primary p-5 text-white transition hover:opacity-95"
+                  : "block rounded-2xl border border-gray-300 p-5 transition hover:bg-gray-50"}
+              >
+                <p className={i === 0 ? "text-sm opacity-80" : "text-sm text-gray-500"}>{b.type === "CASH" ? "صندوق" : "بنك"}</p>
+                <p className="font-semibold">{b.name}</p>
+                <p className={`mt-2 text-2xl font-bold ${i !== 0 && b.balance < 0 ? "text-red-600" : ""}`}>{money(b.balance)} د.ل</p>
               </Link>
             ))}
           </div>
-        </div>
+        </section>
 
         {/* Latest documents */}
-        <div className="card overflow-hidden lg:col-span-2">
-          <div className="px-4 py-3 border-b border-gray-100 font-semibold text-sm">آخر المستندات</div>
+        <section className="card p-5 xl:col-span-2">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold text-gray-800">آخر المستندات</h2>
+            <Link href="/finance/receipts" className="text-sm text-primary-600 hover:underline">كل المستندات</Link>
+          </div>
           {data.recent.length === 0 ? (
-            <p className="text-sm text-gray-400 p-8 text-center">لا توجد مستندات بعد — ابدأ بسند قبض أو صرف</p>
+            <p className="py-8 text-center text-sm text-gray-400">لا توجد مستندات بعد — ابدأ بسند قبض أو صرف</p>
           ) : (
-            <table className="w-full text-sm">
-              <tbody>
-                {data.recent.map((r) => {
-                  const d = DOC[r.kind];
-                  return (
-                    <tr key={r.kind + r.id} className="border-b border-gray-50 hover:bg-gray-50/60">
-                      <td className="px-4 py-2.5 whitespace-nowrap text-gray-500">{fmtDate(r.date)}</td>
-                      <td className="px-4 py-2.5 whitespace-nowrap">
-                        <Badge variant={d.variant}>{d.label}</Badge>
-                        <span className="font-mono text-xs text-gray-400 ms-2" dir="ltr">{r.number}</span>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        {r.accountId ? (
-                          <Link href={`/finance/accounts/${r.accountId}`} className="text-primary-600 hover:underline">{r.label}</Link>
-                        ) : r.label}
-                      </td>
-                      <td className={`px-4 py-2.5 font-semibold text-left ${r.kind === "RECEIPT" ? "text-green-700" : r.kind === "PAYMENT" ? "text-red-600" : "text-gray-700"}`} dir="ltr">
-                        {d.sign}{money(r.amount)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-300 text-gray-500">
+                    <th className="whitespace-nowrap px-3 py-3 text-start font-medium">الرقم</th>
+                    <th className="whitespace-nowrap px-3 py-3 text-start font-medium">النوع</th>
+                    <th className="whitespace-nowrap px-3 py-3 text-start font-medium">الطرف</th>
+                    <th className="whitespace-nowrap px-3 py-3 text-start font-medium">المبلغ</th>
+                    <th className="whitespace-nowrap px-3 py-3 text-start font-medium">التاريخ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-300/70">
+                  {data.recent.map((r) => {
+                    const d = DOC[r.kind];
+                    return (
+                      <tr key={r.kind + r.id}>
+                        <td className="whitespace-nowrap px-3 py-3 font-medium text-gray-800"><bdi>{r.number}</bdi></td>
+                        <td className="px-3 py-3"><Badge variant={d.variant}>{d.label}</Badge></td>
+                        <td className="px-3 py-3">
+                          {r.accountId ? (
+                            <Link href={`/finance/accounts/${r.accountId}`} className="text-gray-800 hover:text-primary-600">{r.label}</Link>
+                          ) : r.label}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 font-semibold text-gray-800">{money(r.amount)} د.ل</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-gray-500"><bdi>{r.date.slice(0, 10)}</bdi></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
-        </div>
+        </section>
       </div>
 
       <VoucherModal

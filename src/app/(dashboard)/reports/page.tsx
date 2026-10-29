@@ -5,6 +5,7 @@ import Link from "next/link";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionTabs, REPORT_TABS } from "@/components/ui/SectionTabs";
 import { Table, Thead, Th, Tbody, Tr, Td } from "@/components/ui/Table";
 
 export default async function ReportsPage({
@@ -60,12 +61,12 @@ export default async function ReportsPage({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="card p-4">
             <p className="text-xs text-gray-500">إجمالي المحصّل</p>
-            <p className="text-xl font-bold text-green-700 mt-1">{totalCollected.toLocaleString("en-US")} ر.س</p>
+            <p className="text-xl font-bold text-green-700 mt-1">{totalCollected.toLocaleString("en-US")} د.ل</p>
           </div>
           {Object.entries(methodTotals).map(([m, v]) => (
             <div key={m} className="card p-4">
               <p className="text-xs text-gray-500">{m}</p>
-              <p className="text-xl font-bold text-primary-700 mt-1">{v.toLocaleString("en-US")} ر.س</p>
+              <p className="text-xl font-bold text-primary-700 mt-1">{v.toLocaleString("en-US")} د.ل</p>
             </div>
           ))}
         </div>
@@ -88,7 +89,7 @@ export default async function ReportsPage({
                   <Td><span className="font-mono text-xs" dir="ltr">{p.voucherNumber}</span></Td>
                   <Td>{p.account?.name ?? p.patient?.fullName ?? "—"}</Td>
                   <Td>{p.paymentMethod.name}</Td>
-                  <Td dir="ltr">{Number(p.amount).toFixed(2)} ر.س</Td>
+                  <Td dir="ltr">{Number(p.amount).toFixed(2)} د.ل</Td>
                 </Tr>
               ))}
             </Tbody>
@@ -188,6 +189,7 @@ export default async function ReportsPage({
   return (
     <div>
       <PageHeader title="التقارير" />
+      <SectionTabs tabs={REPORT_TABS} />
 
       {/* Report type tabs */}
       <div className="flex gap-2 mb-4">

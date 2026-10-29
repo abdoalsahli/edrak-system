@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { to12 } from "@/lib/time12";
 import { ScheduleRhythmFields, DAY_AR, daysMatch, daysMismatchMessage } from "@/components/programs/ScheduleRhythmFields";
 import { ScheduleCalendar, ScheduleWarnings, fmtDateAr, type ProposedApt } from "@/components/programs/ScheduleCalendar";
 
@@ -32,7 +33,7 @@ type ProgramData = {
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const minutes = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
-const money = (n: number) => `${n.toFixed(2)} ر.س`;
+const money = (n: number) => `${n.toFixed(2)} د.ل`;
 const todayIso = () => format(new Date(), "yyyy-MM-dd");
 
 /**
@@ -46,7 +47,7 @@ export default function EditProgramPage() {
 
   // ── schedule ──
   const [startDate, setStartDate] = useState("");
-  const [defaultStartTime, setDefaultStartTime] = useState("09:00");
+  const [defaultStartTime, setDefaultStartTime] = useState("15:00");
   const [durationMin, setDurationMin] = useState(60);
   const [sessionsPerWeek, setSessionsPerWeek] = useState(3);
   const [allowedDays, setAllowedDays] = useState<number[]>([]);
@@ -111,7 +112,7 @@ export default function EditProgramPage() {
   // Current rhythm, for reference
   const upcomingApts = pending.map((s) => s.appointments.find((a) => a.status === "SCHEDULED")).filter((a): a is Apt => !!a);
   const currentDays = [...new Set(upcomingApts.map((a) => new Date(a.date).getDay()))].sort().map((d) => DAY_AR[d]).join("، ");
-  const currentTimes = [...new Set(upcomingApts.map((a) => a.startTime))].join("، ");
+  const currentTimes = [...new Set(upcomingApts.map((a) => a.startTime))].map(to12).join("، ");
 
   async function generatePreview(e: React.FormEvent) {
     e.preventDefault();
@@ -298,12 +299,12 @@ export default function EditProgramPage() {
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label">قيمة الجلسة الجديدة (ر.س) <span className="text-red-500">*</span></label>
+            <label className="label">قيمة الجلسة الجديدة (د.ل) <span className="text-red-500">*</span></label>
             <input required type="number" min={0} step="0.01" value={price}
               onChange={(e) => setPrice(e.target.value === "" ? "" : parseFloat(e.target.value))} className="input" dir="ltr" />
           </div>
           <div>
-            <label className="label">عمولة الأخصائي من الجلسة (ر.س)</label>
+            <label className="label">عمولة الأخصائي من الجلسة (د.ل)</label>
             <input type="number" min={0} step="0.01" value={commission}
               onChange={(e) => setCommission(e.target.value === "" ? "" : parseFloat(e.target.value))} className="input" dir="ltr" />
           </div>

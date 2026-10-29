@@ -105,7 +105,7 @@ export default function NewInvoicePage() {
 
           <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between font-semibold">
             <span>الإجمالي</span>
-            <span dir="ltr">{total().toFixed(2)} ر.س</span>
+            <span dir="ltr">{total().toFixed(2)} د.ل</span>
           </div>
         </div>
 

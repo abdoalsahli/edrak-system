@@ -14,7 +14,7 @@ const Schema = z.object({
   totalSessions: z.number().int().min(1),
   sessionsPerWeek: z.number().int().min(1).max(7),
   durationMin: z.number().int().min(15).default(60),
-  defaultStartTime: z.string().regex(/^\d{2}:\d{2}$/).default("09:00"),
+  defaultStartTime: z.string().regex(/^\d{2}:\d{2}$/).default("15:00"),
   allowedDays: z.array(z.number().int().min(0).max(6)).optional(),
   // Rescheduling this programme: its remaining appointments are being moved
   rescheduleProgramId: z.string().optional(),

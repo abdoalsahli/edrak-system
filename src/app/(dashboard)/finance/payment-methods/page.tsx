@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { readApiError } from "@/lib/apiError";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionTabs, FUNDS_TABS } from "@/components/ui/SectionTabs";
 import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 
@@ -20,7 +21,7 @@ type Method = {
 };
 
 const money = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const boxLabel = (b: Box) => `${b.type === "CASH" ? "💵" : "🏦"} ${b.name}`;
+const boxLabel = (b: Box) => `${b.name} — ${b.type === "CASH" ? "صندوق نقدي" : "حساب بنكي"}`;
 
 /** طرق الدفع — each method is linked to the box its money moves through. */
 export default function PaymentMethodsPage() {
@@ -103,10 +104,11 @@ export default function PaymentMethodsPage() {
   return (
     <div>
       <PageHeader
-        title="طرق الدفع"
+        title="الصناديق وطرق الدفع"
         description="كل طريقة دفع مرتبطة بصندوقها — عند اختيارها في سند قبض أو صرف تُرحَّل القيمة إلى ذلك الصندوق تلقائياً"
         action={<button onClick={openNew} className="btn-primary text-sm">+ طريقة دفع</button>}
       />
+      <SectionTabs tabs={FUNDS_TABS} />
 
       <div className="card overflow-hidden">
         {rows.length === 0 ? (

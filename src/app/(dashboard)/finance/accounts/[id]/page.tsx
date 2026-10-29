@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { VoucherModal, type VoucherKind } from "@/components/finance/VoucherModal";
+import { ArrowLeftRight, Printer } from "lucide-react";
 
 type Kind = "PATIENT" | "THERAPIST" | "EXPENSE" | "CUSTOM" | "CASH";
 type Nature = "DEBIT" | "CREDIT";
@@ -122,10 +123,10 @@ export default function AccountStatementPage() {
             )}
             {account.isActive && (
               <button onClick={() => setVoucher("settlement")} className="btn-secondary text-sm">
-                {isCash ? "⇄ تحويل / تسوية" : "⇄ تسوية"}
+                <ArrowLeftRight className="size-4" />{isCash ? "تحويل / تسوية" : "تسوية"}
               </button>
             )}
-            <button onClick={() => window.print()} className="btn-secondary text-sm">🖨 طباعة</button>
+            <button onClick={() => window.print()} className="btn-secondary text-sm"><Printer className="size-4" />طباعة</button>
           </div>
         }
       />
@@ -157,7 +158,7 @@ export default function AccountStatementPage() {
         </div>
         <div className={`card p-4 border ${meaning.tone}`}>
           <p className="text-xs">{meaning.text}</p>
-          <p className="text-lg font-bold mt-1" dir="ltr">{money(Math.abs(totals.balance))} ر.س</p>
+          <p className="text-lg font-bold mt-1" dir="ltr">{money(Math.abs(totals.balance))} د.ل</p>
         </div>
       </div>
 

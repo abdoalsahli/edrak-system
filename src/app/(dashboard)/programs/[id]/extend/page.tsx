@@ -35,7 +35,7 @@ export default function ExtendProgramPage() {
 
   const [program, setProgram] = useState<ProgramSummary | null>(null);
   const [startDate, setStartDate] = useState("");
-  const [defaultStartTime, setDefaultStartTime] = useState("09:00");
+  const [defaultStartTime, setDefaultStartTime] = useState("15:00");
   const [durationMin, setDurationMin] = useState(60);
   const [sessionsPerWeek, setSessionsPerWeek] = useState(3);
   const [totalSessions, setTotalSessions] = useState(12);
@@ -152,7 +152,7 @@ export default function ExtendProgramPage() {
         <div className="grid grid-cols-4 gap-3 mb-5">
           {[
             { label: "جلسات إضافية", value: proposed.length, color: "text-primary-700 bg-primary-50" },
-            { label: "قيمة التمديد", value: `${addedValue.toFixed(2)} ر.س`, color: "text-blue-700 bg-blue-50" },
+            { label: "قيمة التمديد", value: `${addedValue.toFixed(2)} د.ل`, color: "text-blue-700 bg-blue-50" },
             { label: "من", value: proposed[0] ? fmtDateAr(proposed[0].date).split("،")[1].trim() : "—", color: "text-gray-700 bg-gray-50" },
             { label: "إلى", value: proposed.at(-1) ? fmtDateAr(proposed.at(-1)!.date).split("،")[1].trim() : "—", color: "text-gray-700 bg-gray-50" },
           ].map((s) => (
@@ -170,15 +170,15 @@ export default function ExtendProgramPage() {
         <div className="card p-4 mt-4 grid grid-cols-3 gap-4 text-sm">
           <div>
             <p className="text-xs text-gray-500">قيمة الجلسة (كما في البرنامج)</p>
-            <p className="font-bold text-gray-800 mt-0.5" dir="ltr">{unitPrice.toFixed(2)} ر.س</p>
+            <p className="font-bold text-gray-800 mt-0.5" dir="ltr">{unitPrice.toFixed(2)} د.ل</p>
           </div>
           <div>
             <p className="text-xs text-gray-500">عمولة الأخصائي من كل جلسة</p>
-            <p className="font-bold text-amber-700 mt-0.5" dir="ltr">{unitCommission.toFixed(2)} ر.س</p>
+            <p className="font-bold text-amber-700 mt-0.5" dir="ltr">{unitCommission.toFixed(2)} د.ل</p>
           </div>
           <div>
             <p className="text-xs text-gray-500">عمولة التمديد</p>
-            <p className="font-bold text-amber-700 mt-0.5" dir="ltr">{addedCommission.toFixed(2)} ر.س</p>
+            <p className="font-bold text-amber-700 mt-0.5" dir="ltr">{addedCommission.toFixed(2)} د.ل</p>
           </div>
         </div>
         <p className="text-xs text-gray-400 mt-2">
@@ -227,7 +227,7 @@ export default function ExtendProgramPage() {
         {Number(program.sessionPrice ?? 0) > 0 && totalSessions > 0 && (
           <div className="bg-primary-50 border border-primary-100 rounded-xl px-4 py-3 text-sm text-primary-900 flex items-center justify-between">
             <span>قيمة التمديد ({totalSessions} × {Number(program.sessionPrice).toFixed(2)})</span>
-            <span className="font-bold" dir="ltr">{r2(Number(program.sessionPrice) * totalSessions).toFixed(2)} ر.س</span>
+            <span className="font-bold" dir="ltr">{r2(Number(program.sessionPrice) * totalSessions).toFixed(2)} د.ل</span>
           </div>
         )}
 

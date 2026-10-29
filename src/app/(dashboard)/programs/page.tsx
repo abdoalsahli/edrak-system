@@ -5,7 +5,6 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Table, Thead, Th, Tbody, Tr, Td } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Pagination } from "@/components/ui/Pagination";
@@ -40,6 +39,7 @@ export default async function ProgramsPage({ searchParams }: { searchParams: { p
         patient: { select: { id: true, fullName: true } },
         therapist: { select: { fullName: true } },
         service: { select: { name: true } },
+        invoice: { select: { totalAmount: true } },
       },
       orderBy: { createdAt: "desc" },
       skip,
@@ -64,10 +64,10 @@ export default async function ProgramsPage({ searchParams }: { searchParams: { p
         action={<Link href="/programs/new" className="btn-primary">+ برنامج جديد</Link>}
       />
 
-      <div className="mb-4 flex gap-2">
-        <form method="get" className="flex gap-2 flex-1">
-          <input name="q" defaultValue={q} placeholder="بحث بالاسم..." className="input max-w-xs" />
-          <select name="status" defaultValue={statusFilter} className="input max-w-[160px]">
+      <div className="mb-5 flex gap-2">
+        <form method="get" className="flex flex-1 flex-wrap gap-2">
+          <input name="q" defaultValue={q} placeholder="بحث باسم المريض..." className="input max-w-xs !rounded-full" />
+          <select name="status" defaultValue={statusFilter} className="input max-w-[160px] !rounded-full">
             <option value="">جميع الحالات</option>
             <option value="ACTIVE">نشط</option>
             <option value="COMPLETED">مكتمل</option>
@@ -78,56 +78,43 @@ export default async function ProgramsPage({ searchParams }: { searchParams: { p
         </form>
       </div>
 
-      <div className="card">
-        {programs.length === 0 ? (
+      {programs.length === 0 ? (
+        <div className="card">
           <EmptyState title="لا توجد برامج" action={<Link href="/programs/new" className="btn-primary">+ برنامج جديد</Link>} />
-        ) : (
-          <Table>
-            <Thead>
-              <tr>
-                <Th>المريض</Th>
-                <Th>الخدمة</Th>
-                <Th>المعالج</Th>
-                <Th>التقدم</Th>
-                <Th>تاريخ البدء</Th>
-                <Th>الحالة</Th>
-                <Th></Th>
-              </tr>
-            </Thead>
-            <Tbody>
-              {programs.map((p) => {
-                const c = consumedMap[p.id] ?? 0;
-                const pct = p.plannedSessions > 0 ? Math.round((c / p.plannedSessions) * 100) : 0;
-                const st = STATUS_MAP[p.status] ?? { label: p.status, variant: "gray" };
-                return (
-                  <Tr key={p.id}>
-                    <Td>
-                      <Link href={`/patients/${p.patient.id}`} className="text-primary-600 hover:underline font-medium">
-                        {p.patient.fullName}
-                      </Link>
-                    </Td>
-                    <Td>{p.service.name}</Td>
-                    <Td>{p.therapist.fullName}</Td>
-                    <Td>
-                      <div className="flex items-center gap-2">
-                        <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-primary-500 rounded-full" style={{ width: `${pct}%` }} />
-                        </div>
-                        <span className="text-xs text-gray-600">{c}/{p.plannedSessions}</span>
-                      </div>
-                    </Td>
-                    <Td>{format(new Date(p.startDate), "d MMM yyyy", { locale: arSA })}</Td>
-                    <Td><Badge variant={st.variant}>{st.label}</Badge></Td>
-                    <Td>
-                      <Link href={`/programs/${p.id}`} className="text-primary-600 hover:underline text-xs">عرض</Link>
-                    </Td>
-                  </Tr>
-                );
-              })}
-            </Tbody>
-          </Table>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {programs.map((p) => {
+            const c = consumedMap[p.id] ?? 0;
+            const pct = p.plannedSessions > 0 ? Math.min(100, Math.round((c / p.plannedSessions) * 100)) : 0;
+            const st = STATUS_MAP[p.status] ?? { label: p.status, variant: "gray" };
+            const value = Number(p.invoice?.totalAmount ?? 0);
+            return (
+              <Link key={p.id} href={`/programs/${p.id}`} className="card block p-5 transition hover:-translate-y-0.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-gray-800">{p.service.name}</p>
+                    <p className="truncate text-sm text-gray-500">{p.patient.fullName}</p>
+                  </div>
+                  <Badge variant={st.variant}>{st.label}</Badge>
+                </div>
+
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-gray-100">
+                  <div className="h-full rounded-full bg-gradient-primary" style={{ width: `${pct}%` }} />
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  {c} من {p.plannedSessions} جلسة · {p.sessionsPerWeek} أسبوعياً · منذ {format(new Date(p.startDate), "d MMM", { locale: arSA })}
+                </p>
+
+                <div className="mt-4 flex items-center justify-between border-t border-gray-300/70 pt-4 text-sm">
+                  <span className="text-gray-600">{p.therapist.fullName}</span>
+                  <span className="font-semibold text-gray-800">{value.toLocaleString("en-US")} د.ل</span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
 
       <Pagination total={total} pageSize={PAGE_SIZE} />
     </div>

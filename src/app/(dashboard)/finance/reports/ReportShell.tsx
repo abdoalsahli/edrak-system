@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionTabs, REPORT_TABS } from "@/components/ui/SectionTabs";
 
 /** Shared frame for the finance reports: role check, title and the period form. */
 export async function requireFinanceRole() {
@@ -29,7 +30,8 @@ export function ReportFrame({
 }) {
   return (
     <div>
-      <PageHeader title={title} description={description} />
+      <PageHeader title="التقارير" description={description ? `${title} — ${description}` : title} />
+      <SectionTabs tabs={REPORT_TABS} />
       <form method="get" className="flex flex-wrap items-end gap-2 mb-6">
         {!asOfOnly && (
           <div>

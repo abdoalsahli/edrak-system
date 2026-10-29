@@ -7,6 +7,8 @@ import { readApiError } from "@/lib/apiError";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
+import { AlertTriangle } from "lucide-react";
+import { to12, range12 } from "@/lib/time12";
 
 type Apt = {
   id: string;
@@ -26,8 +28,8 @@ type Apt = {
   };
 };
 
-const STATUS: Record<string, { label: string; variant: "success" | "danger" | "warning" | "gray" }> = {
-  PENDING: { label: "مجدولة", variant: "warning" },
+const STATUS: Record<string, { label: string; variant: "default" | "success" | "danger" | "warning" | "gray" }> = {
+  PENDING: { label: "مجدولة", variant: "default" },
   COMPLETED: { label: "مكتملة", variant: "success" },
   ABSENT: { label: "غياب", variant: "danger" },
   CANCELLED_BY_PATIENT: { label: "ألغى المريض", variant: "gray" },
@@ -99,7 +101,7 @@ export default function MySchedulePage() {
       <div className="flex items-start justify-between gap-3 px-4 py-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-sm font-semibold text-primary-700" dir="ltr">{a.startTime} – {a.endTime}</span>
+            <span className="text-sm font-semibold text-primary-700">{range12(a.startTime, a.endTime)}</span>
             {showDate && <span className="text-xs text-gray-500">{format(parseISO(a.date), "EEEE d MMM", { locale: arSA })}</span>}
             <Badge variant={st.variant}>{st.label}</Badge>
             {s.isCharged && s.status !== "COMPLETED" && <span className="text-xs text-gray-400">(محتسبة)</span>}
@@ -128,7 +130,7 @@ export default function MySchedulePage() {
       {overdue.length > 0 && (
         <div className="card border-amber-200 mb-5 overflow-hidden">
           <div className="px-4 py-2.5 bg-amber-50 text-sm font-semibold text-amber-900">
-            ⚠️ جلسات سابقة بانتظار تسجيل النتيجة ({overdue.length})
+            <span className="inline-flex items-center gap-2"><AlertTriangle className="size-4" />جلسات سابقة بانتظار تسجيل النتيجة ({overdue.length})</span>
           </div>
           <div className="divide-y divide-gray-100">
             {overdue.map((a) => <Card key={a.id} a={a} showDate />)}
@@ -200,7 +202,7 @@ export default function MySchedulePage() {
           >
             <div className="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
               {target.session.patient.fullName} · {target.session.service.name} ·{" "}
-              <span dir="ltr">{target.startTime}</span> · {format(parseISO(target.date), "EEEE d MMM", { locale: arSA })}
+              <span>{to12(target.startTime)}</span> · {format(parseISO(target.date), "EEEE d MMM", { locale: arSA })}
             </div>
             <div>
               <label className="label">النتيجة</label>

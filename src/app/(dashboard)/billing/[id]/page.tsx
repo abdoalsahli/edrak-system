@@ -144,13 +144,13 @@ export default function InvoiceDetailPage() {
       <div className="card mb-4 divide-y divide-gray-100 text-sm">
         <div className="px-5 py-3 flex justify-between">
           <span className="text-gray-500">{data.programId ? "إجمالي الفاتورة (قيمة البرنامج)" : "إجمالي الفاتورة"}</span>
-          <span className="font-semibold" dir="ltr">{Number(data.totalAmount).toFixed(2)} ر.س</span>
+          <span className="font-semibold" dir="ltr">{Number(data.totalAmount).toFixed(2)} د.ل</span>
         </div>
         {data.lines.length > 0 && (
           <div className="px-5 py-3 flex justify-between text-blue-700">
             <span>قيمة الجلسات المنجزة حتى الآن</span>
             <span className="font-semibold" dir="ltr">
-              {data.lines.reduce((s, l) => s + Number(l.total), 0).toFixed(2)} ر.س
+              {data.lines.reduce((s, l) => s + Number(l.total), 0).toFixed(2)} د.ل
             </span>
           </div>
         )}
@@ -180,7 +180,7 @@ export default function InvoiceDetailPage() {
                   <div className="flex items-center gap-4">
                     <span className="text-gray-500">{format(new Date(p.paymentDate), "d MMM yyyy", { locale: arSA })}</span>
                     <span className={`font-medium ${isRefund ? "text-red-600" : "text-green-700"}`} dir="ltr">
-                      {Number(p.amount).toFixed(2)} ر.س
+                      {Number(p.amount).toFixed(2)} د.ل
                     </span>
                   </div>
                 </div>

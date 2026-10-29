@@ -4,9 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { readApiError } from "@/lib/apiError";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionTabs, FUNDS_TABS } from "@/components/ui/SectionTabs";
 import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { VoucherModal } from "@/components/finance/VoucherModal";
+import { ArrowLeftRight, Wallet, Landmark } from "lucide-react";
 
 type CashAccount = {
   id: string;
@@ -21,7 +23,7 @@ type CashAccount = {
   isActive: boolean;
 };
 
-const money = (n: number) => `${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ر.س`;
+const money = (n: number) => `${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} د.ل`;
 
 /** الصناديق والبنوك — each box is a ledger account; its statement is the account statement. */
 export default function CashPage() {
@@ -71,19 +73,20 @@ export default function CashPage() {
   return (
     <div>
       <PageHeader
-        title="الصناديق والبنوك"
+        title="الصناديق وطرق الدفع"
         description="كل صندوق حساب في الدليل — رصيده وكشفه من دفتر القيود"
         action={
           <div className="flex gap-2">
-            <button onClick={() => setTransfer(true)} className="btn-secondary text-sm">⇄ تحويل بين صندوقين</button>
+            <button onClick={() => setTransfer(true)} className="btn-secondary text-sm"><ArrowLeftRight className="size-4" />تحويل بين صندوقين</button>
             <button onClick={() => { setError(""); setModal(true); }} className="btn-primary text-sm">+ صندوق جديد</button>
           </div>
         }
       />
+      <SectionTabs tabs={FUNDS_TABS} />
 
-      <div className="card p-4 mb-6 bg-primary-50 border-primary-200 inline-block">
-        <p className="text-xs text-primary-700">إجمالي النقد في الصناديق النشطة</p>
-        <p className="text-2xl font-bold text-primary-800 mt-1" dir="ltr">{money(total)}</p>
+      <div className="mb-6 inline-block min-w-[18rem] rounded-card bg-gradient-primary p-5 text-white shadow-card">
+        <p className="text-sm opacity-80">إجمالي النقد في الصناديق النشطة</p>
+        <p className="mt-1 text-3xl font-bold">{money(total)}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -92,7 +95,7 @@ export default function CashPage() {
             <div className="flex items-start justify-between mb-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">{a.type === "CASH" ? "💵" : "🏦"}</span>
+                  <span className={`grid size-10 place-items-center rounded-full ${a.type === "CASH" ? "bg-green-100 text-green-500" : "bg-primary-100 text-primary-600"}`}>{a.type === "CASH" ? <Wallet className="size-5" /> : <Landmark className="size-5" />}</span>
                   <h3 className="font-semibold text-gray-900">{a.name}</h3>
                   {!a.isActive && <Badge variant="gray">معطّل</Badge>}
                 </div>

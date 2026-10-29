@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { readApiError } from "@/lib/apiError";
 import { Modal } from "@/components/ui/Modal";
 import { PaymentMethodField } from "@/components/finance/PaymentMethodField";
+import { AccountSelect, type AccountOption } from "@/components/finance/AccountSelect";
+import { SettlementFields, type SettlementValue } from "@/components/finance/SettlementFields";
 
 /**
  * One voucher form used everywhere: سند قبض · سند صرف · تسوية.
@@ -12,71 +14,13 @@ import { PaymentMethodField } from "@/components/finance/PaymentMethodField";
  */
 
 export type VoucherKind = "receipt" | "payment" | "settlement";
-type Kind = "PATIENT" | "THERAPIST" | "EXPENSE" | "CUSTOM" | "CASH";
-type Nature = "DEBIT" | "CREDIT";
-
-export type AccountOption = { id: string; code: string; name: string; kind: Kind; nature: Nature; balance?: number };
-
-const KIND_GROUP: Record<Kind, string> = {
-  PATIENT: "المرضى",
-  THERAPIST: "الأخصائيون",
-  EXPENSE: "المصروفات",
-  CUSTOM: "حسابات عامة",
-  CASH: "الصناديق والبنوك",
-};
-const KIND_ORDER: Kind[] = ["PATIENT", "THERAPIST", "EXPENSE", "CUSTOM", "CASH"];
-
-const SETTLEMENT_TYPES: [string, string][] = [
-  ["DISCOUNT", "خصم"],
-  ["WRITE_OFF", "إعدام دين"],
-  ["CORRECTION", "تصحيح / عجز أو زيادة جرد"],
-  ["TRANSFER", "تحويل بين حسابين"],
-  ["OTHER", "أخرى"],
-];
+type Kind = AccountOption["kind"];
+export type { AccountOption };
 
 const TITLE: Record<VoucherKind, string> = { receipt: "سند قبض", payment: "سند صرف", settlement: "تسوية" };
+
 const money = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const today = () => new Date().toISOString().slice(0, 10);
-
-/** Searchable account picker, grouped by kind. */
-export function AccountSelect({
-  accounts, value, onChange, exclude = [], kinds, required, placeholder = "— اختر الحساب —",
-}: {
-  accounts: AccountOption[];
-  value: string;
-  onChange: (id: string) => void;
-  exclude?: string[];
-  kinds?: Kind[];
-  required?: boolean;
-  placeholder?: string;
-}) {
-  const [q, setQ] = useState("");
-  const options = accounts.filter(
-    (a) =>
-      !exclude.includes(a.id) &&
-      (!kinds || kinds.includes(a.kind)) &&
-      (!q || a.name.includes(q) || a.code.toLowerCase().includes(q.toLowerCase()))
-  );
-  return (
-    <div className="space-y-1">
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="بحث بالاسم أو الرمز..." className="input text-sm" />
-      <select required={required} value={value} onChange={(e) => onChange(e.target.value)} className="input">
-        <option value="">{placeholder}</option>
-        {KIND_ORDER.map((k) => {
-          const group = options.filter((a) => a.kind === k);
-          if (group.length === 0) return null;
-          return (
-            <optgroup key={k} label={KIND_GROUP[k]}>
-              {group.map((a) => (
-                <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-              ))}
-            </optgroup>
-          );
-        })}
-      </select>
-    </div>
-  );
-}
 
 export function VoucherModal({
   open, kind, onClose, onDone, fixedAccount,
@@ -95,11 +39,10 @@ export function VoucherModal({
   const [method, setMethod] = useState(""); // payment method id — it decides the box
   const [reference, setReference] = useState("");
   const [description, setDescription] = useState("");
-  // settlement
-  const [stlType, setStlType] = useState("DISCOUNT");
-  const [stlSide, setStlSide] = useState<"debit" | "credit">("credit");
-  const [debitAccountId, setDebitAccountId] = useState("");
-  const [creditAccountId, setCreditAccountId] = useState("");
+  // settlement — worked out by SettlementFields from the chosen template
+  const [stl, setStl] = useState<SettlementValue | null>(null);
+  // Remounts the settlement fields on every opening, so they start fresh
+  const [openCount, setOpenCount] = useState(0);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -108,9 +51,8 @@ export function VoucherModal({
   useEffect(() => {
     if (!open) return;
     setError(""); setAmount(""); setReference(""); setDate(today());
-    setDebitAccountId(""); setCreditAccountId(""); setStlType("DISCOUNT");
     setAccountId(fixedAccount?.id ?? "");
-    setStlSide(fixedAccount?.nature === "CREDIT" ? "debit" : "credit");
+    setStl(null); setOpenCount((n) => n + 1);
     setDescription("");
     fetch("/api/ledger/accounts").then((r) => (r.ok ? r.json() : null)).then((d) => d && setAccounts(d.data));
   }, [open, kind, fixedAccount]);
@@ -131,9 +73,18 @@ export function VoucherModal({
     );
   }, [kind, account, description]);
 
+  const [autoDescription, setAutoDescription] = useState("");
+  useEffect(() => {
+    if (kind !== "settlement" || !stl) return;
+    if (!description || description === autoDescription) setDescription(stl.description);
+    setAutoDescription(stl.description);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, stl?.description]);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (kind !== "settlement" && !method) { setError("اختر طريقة الدفع"); return; }
+    if (kind === "settlement" && stl?.error) { setError(stl.error); return; }
     setSaving(true); setError("");
     let res: Response;
 
@@ -159,18 +110,13 @@ export function VoucherModal({
         }),
       });
     } else {
-      let debit = debitAccountId || undefined;
-      let credit = creditAccountId || undefined;
-      if (fixedAccount) {
-        // the fixed account takes the chosen side; the picked account (if any) the other
-        const other = accountId && accountId !== fixedAccount.id ? accountId : undefined;
-        debit = stlSide === "debit" ? fixedAccount.id : other;
-        credit = stlSide === "credit" ? fixedAccount.id : other;
-      }
       res = await fetch("/api/finance/settlements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: stlType, amount: Number(amount), date, description, debitAccountId: debit, creditAccountId: credit }),
+        body: JSON.stringify({
+          type: stl?.type, amount: Number(amount), date, description,
+          debitAccountId: stl?.debitAccountId, creditAccountId: stl?.creditAccountId,
+        }),
       });
     }
 
@@ -208,52 +154,8 @@ export function VoucherModal({
         )}
 
         {kind === "settlement" && (
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">نوع التسوية</label>
-                <select value={stlType} onChange={(e) => setStlType(e.target.value)} className="input">
-                  {SETTLEMENT_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
-              </div>
-              {fixedAccount && (
-                <div>
-                  <label className="label">قيد على «{fixedAccount.name}»</label>
-                  <select value={stlSide} onChange={(e) => setStlSide(e.target.value as "debit" | "credit")} className="input">
-                    <option value="credit">دائن (له)</option>
-                    <option value="debit">مدين (عليه)</option>
-                  </select>
-                </div>
-              )}
-            </div>
-
-            {fixedAccount ? (
-              <div>
-                <label className="label">
-                  الحساب المقابل {stlType === "TRANSFER" ? <span className="text-red-500">*</span> : <span className="text-xs text-gray-400">(اختياري)</span>}
-                </label>
-                <AccountSelect accounts={accounts} value={accountId === fixedAccount.id ? "" : accountId} onChange={setAccountId}
-                  exclude={[fixedAccount.id]} required={stlType === "TRANSFER"} placeholder="— بدون حساب مقابل —" />
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">الحساب المدين {stlType === "TRANSFER" && <span className="text-red-500">*</span>}</label>
-                  <AccountSelect accounts={accounts} value={debitAccountId} onChange={setDebitAccountId}
-                    exclude={creditAccountId ? [creditAccountId] : []} required={stlType === "TRANSFER"} placeholder="—" />
-                </div>
-                <div>
-                  <label className="label">الحساب الدائن {stlType === "TRANSFER" && <span className="text-red-500">*</span>}</label>
-                  <AccountSelect accounts={accounts} value={creditAccountId} onChange={setCreditAccountId}
-                    exclude={debitAccountId ? [debitAccountId] : []} required={stlType === "TRANSFER"} placeholder="—" />
-                </div>
-              </div>
-            )}
-            <p className="text-xs text-gray-400">
-              خصم على مريض: الدائن = حساب المريض. إيداع نقد في البنك: تحويل، المدين = البنك والدائن = الصندوق.
-              عجز جرد: الدائن = الصندوق.
-            </p>
-          </div>
+          <SettlementFields key={openCount} accounts={accounts} fixedAccount={fixedAccount}
+            amount={Number(amount) || 0} onChange={setStl} />
         )}
 
         {/* ── Amount & cash ──────────────────────────────────────── */}

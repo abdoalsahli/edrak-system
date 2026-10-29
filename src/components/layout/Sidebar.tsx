@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
   LayoutGrid, Users, CalendarDays, ClipboardList, Wallet, FileText, BookOpen, Landmark,
-  UserCog, Layers, BarChart3, Settings, CalendarCheck, NotebookText, LogOut, type LucideIcon,
+  UserCog, Layers, FileCheck2, BarChart3, Settings, CalendarCheck, NotebookText, LogOut, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@prisma/client";
@@ -26,12 +26,14 @@ const DESK: UserRole[] = ["RECEPTIONIST", "MANAGER"];
 const NAV: NavLink[] = [
   // Therapist portal
   { href: "/my/schedule", label: "جدولي", icon: CalendarCheck, roles: ["THERAPIST"] },
+  { href: "/my/plans", label: "خططي وتقاريري", icon: FileCheck2, roles: ["THERAPIST"] },
   { href: "/my/statement", label: "كشف حسابي", icon: NotebookText, roles: ["THERAPIST"] },
 
   { href: "/dashboard", label: "لوحة التحكم", icon: LayoutGrid, roles: ["RECEPTIONIST", "MANAGER", "ACCOUNTANT"] },
   { href: "/patients", label: "المرضى", icon: Users, roles: DESK },
   { href: "/sessions", label: "الجلسات", icon: CalendarDays, roles: DESK },
   { href: "/programs", label: "البرامج العلاجية", icon: ClipboardList, roles: DESK },
+  { href: "/case-plans", label: "الخطط والتقارير", icon: FileCheck2, roles: ["MANAGER"], match: ["/programs/*/cycles"] },
   { href: "/finance", label: "المالية", icon: Wallet, roles: FINANCE },
   {
     href: "/finance/receipts", label: "السندات والتسويات", icon: FileText, roles: FINANCE,

@@ -57,6 +57,21 @@ enum ProgramStatus {
   CANCELLED
 }
 
+/// Workflow of a treatment plan or a follow-up report
+enum CaseDocStatus {
+  DRAFT // the therapist is still writing it
+  SUBMITTED // sent to management for review
+  APPROVED // reviewed and accepted
+  RETURNED // sent back to the therapist with a note
+}
+
+/// How far a plan goal got by the end of its cycle
+enum GoalAchievement {
+  ACHIEVED
+  PARTIAL
+  NOT_ACHIEVED
+}
+
 enum BillingCycleStatus {
   OPEN
   INVOICED
@@ -98,6 +113,10 @@ model User {
   issuedInvoices        Invoice[]              @relation("InvoiceIssuedBy")
   receivedPayments      Payment[]              @relation("PaymentReceivedBy")
   uploadedDocuments     Document[]
+  plansReviewed         TreatmentPlan[]        @relation("PlanReviewedBy")
+  plansCreated          TreatmentPlan[]        @relation("PlanCreatedBy")
+  reportsReviewed       FollowUpReport[]       @relation("ReportReviewedBy")
+  reportsCreated        FollowUpReport[]       @relation("ReportCreatedBy")
   updatedSettings       SystemSetting[]
   sessionAuditLogs      SessionAuditLog[]
   therapistTransferLogs TherapistTransferLog[] @relation("TransferPerformedBy")
@@ -171,6 +190,8 @@ model Therapist {
   disbursements         Disbursement[]
   ledgerAccount         LedgerAccount?
   user                  User?                           @relation(fields: [userId], references: [id])
+  plans                 TreatmentPlan[]
+  reports               FollowUpReport[]
 
   @@map("therapists")
 }
@@ -418,9 +439,92 @@ model Program {
   billingCycles BillingCycle[]
   transferLogs  TherapistTransferLog[]
   invoice       Invoice?
+  plans         TreatmentPlan[]
 
   @@index([patientId])
   @@map("programs")
+}
+
+// ─── CASE PLANS & FOLLOW-UP REPORTS ─────────────────────────────────────────
+// A program runs in cycles («دورات») of sessionsPerWeek × 4 sessions (usually 12).
+// Each cycle opens with a treatment plan and closes with a follow-up report;
+// management reviews both.
+
+/// الخطة العلاجية — the therapist's plan for one cycle of a program
+model TreatmentPlan {
+  id            String        @id @default(cuid())
+  programId     String
+  cycleNumber   Int
+  fromSequence  Int // first session of the cycle (programSequenceNumber)
+  toSequence    Int // last session of the cycle
+  therapistId   String
+  planDate      DateTime      @db.Date
+  caseSummary   String        @db.Text
+  longTermGoals String        @db.Text
+  methods       String        @db.Text
+  focusAreas    Json // string[] — developmental areas this cycle
+  notes         String?       @db.Text
+  status        CaseDocStatus @default(DRAFT)
+  submittedAt   DateTime?
+  reviewNote    String?       @db.Text
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdById   String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  program    Program         @relation(fields: [programId], references: [id], onDelete: Cascade)
+  therapist  Therapist       @relation(fields: [therapistId], references: [id])
+  reviewedBy User?           @relation("PlanReviewedBy", fields: [reviewedById], references: [id])
+  createdBy  User            @relation("PlanCreatedBy", fields: [createdById], references: [id])
+  goals      PlanGoal[]
+  report     FollowUpReport?
+
+  @@unique([programId, cycleNumber])
+  @@map("treatment_plans")
+}
+
+/// A short-term goal of a plan; the follow-up report rates it
+model PlanGoal {
+  id          String           @id @default(cuid())
+  planId      String
+  text        String           @db.Text
+  sortOrder   Int
+  achievement GoalAchievement?
+
+  plan TreatmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@map("plan_goals")
+}
+
+/// تقرير المتابعة — written at the end of a cycle, against its plan
+model FollowUpReport {
+  id               String        @id @default(cuid())
+  planId           String        @unique
+  therapistId      String
+  reportDate       DateTime      @db.Date
+  diagnosis        String        @db.Text
+  progressLevel    String // ACHIEVED | PARTIAL | NONE, or free text («أخرى»)
+  changes          Json // string[] — noticed changes
+  parentCommitment String // COMMITTED | PARTIAL | NOT_COMMITTED, or free text
+  obstacles        Json // string[]
+  recommendations  String        @db.Text
+  status           CaseDocStatus @default(DRAFT)
+  submittedAt      DateTime?
+  reviewNote       String?       @db.Text
+  reviewedById     String?
+  reviewedAt       DateTime?
+  createdById      String
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  plan       TreatmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  therapist  Therapist     @relation(fields: [therapistId], references: [id])
+  reviewedBy User?         @relation("ReportReviewedBy", fields: [reviewedById], references: [id])
+  createdBy  User          @relation("ReportCreatedBy", fields: [createdById], references: [id])
+
+  @@map("follow_up_reports")
 }
 
 // ─── BILLING ──────────────────────────────────────────────────────────────────

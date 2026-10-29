@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth, ok, badRequest, paginate } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus, round2 } from "@/lib/billing/InvoiceService";
+import { splitAmount } from "@/lib/programs/packageTotals";
 import { nextVoucherNumber } from "@/lib/billing/VoucherService";
 import { createReceipt, getPatientAccountId, syncInvoiceLedger, syncProgramCommissionLedger, LedgerError } from "@/lib/ledger/LedgerService";
 import { z } from "zod";
@@ -15,17 +16,6 @@ class ProgramError extends Error {}
  * Any leftover piastres go to the first sessions, so 1000 over 3 sessions
  * becomes 333.34 + 333.33 + 333.33 rather than losing a piastre.
  */
-function splitAmount(total: number, n: number): number[] {
-  if (n <= 0) return [];
-  const cents = Math.round(total * 100);
-  const base = Math.floor(cents / n);
-  let remainder = cents - base * n;
-  return Array.from({ length: n }, () => {
-    const c = base + (remainder-- > 0 ? 1 : 0);
-    return c / 100;
-  });
-}
-
 const CreateSchema = z.object({
   patientId: z.string(),
   serviceId: z.string(),

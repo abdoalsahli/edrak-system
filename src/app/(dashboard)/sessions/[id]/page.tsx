@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { AlertTriangle, Pencil } from "lucide-react";
 import { EditSessionModal } from "@/components/sessions/EditSessionModal";
+import { PatientAccountCard } from "@/components/finance/PatientAccountCard";
 import { range12 } from "@/lib/time12";
 
 const STATUS_MAP: Record<string, { label: string; variant: "success" | "danger" | "warning" | "gray" | "default" }> = {
@@ -60,13 +61,7 @@ type SessionData = {
   commission:   Commission | null;
 };
 
-const INV_STATUS: Record<string, string> = {
-  DRAFT: "مسودة", ISSUED: "صادرة", PARTIAL: "مدفوعة جزئياً",
-  PAID: "مدفوعة", VOID: "ملغاة",
-};
-
-const fmt = (n: number) =>
-  new Intl.NumberFormat("ar-SA", { style: "currency", currency: "SAR" }).format(n);
+const fmt = (n: number) => `${n.toLocaleString("en-US", { maximumFractionDigits: 2 })} د.ل`;
 
 export default function SessionDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -161,8 +156,9 @@ export default function SessionDetailPage() {
   if (!data) return <div className="text-gray-400 p-8 text-center">جارٍ التحميل...</div>;
 
   const st = STATUS_MAP[data.status] ?? { label: data.status, variant: "gray" };
-  // A session is billed either through its program or its own standalone invoice
-  const invoice = data.program?.invoice ?? data.standaloneInvoice ?? null;
+  // Held or still booked sessions count; an absence or cancellation only when charged
+  const counts = data.status === "PENDING" || data.status === "COMPLETED" || data.isCharged;
+  const charged = counts ? Number(data.price ?? 0) : 0;
   const activeApt = data.appointments.find((a) => a.status !== "CANCELLED");
 
   return (
@@ -256,70 +252,18 @@ export default function SessionDetailPage() {
         )}
       </div>
 
-      {/* ─── Billing panel ─────────────────────────────────────────── */}
-      <div className="card p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-gray-900">الفوترة</h2>
-          {data.program ? (
-            <Link href={`/programs/${data.program.id}`} className="text-xs text-primary-600 hover:underline">
-              عرض البرنامج ←
-            </Link>
-          ) : !invoice && (
-            <Link href="/billing/new" className="text-xs text-primary-600 hover:underline">
-              + إنشاء فاتورة
-            </Link>
-          )}
-        </div>
-
-        {/* The auto-invoice exists from the moment the session is booked */}
-        {invoice && (
-          <Link
-            href={`/billing/${invoice.id}`}
-            className="flex items-center justify-between p-3 mb-3 rounded-lg border border-primary-200 bg-primary-50 hover:bg-primary-100 transition-colors"
-          >
-            <div>
-              <p className="text-sm font-medium text-primary-900">
-                {data.program ? "فاتورة البرنامج" : "فاتورة هذه الجلسة"}
-              </p>
-              <p className="text-xs text-primary-700 mt-0.5">
-                مدفوع {fmt(Number(invoice.paidAmount))} من {fmt(Number(invoice.totalAmount))}
-              </p>
-            </div>
-            <div className="text-left">
-              <span className="text-xs bg-white px-2 py-0.5 rounded-full border border-primary-200 text-primary-800">
-                {INV_STATUS[invoice.status] ?? invoice.status}
-              </span>
-              <p className="text-xs text-primary-600 mt-1">عرض الفاتورة ←</p>
-            </div>
-          </Link>
-        )}
-
-        {data.invoiceLines.length === 0 ? (
-          <p className="text-sm text-gray-400">
-            {!invoice
-              ? "لا توجد فاتورة لهذه الجلسة بعد"
-              : data.status === "PENDING"
-              ? "يُضاف بند الفاتورة عند تسجيل الجلسة كمكتملة"
-              : "لا توجد بنود لهذه الجلسة"}
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {data.invoiceLines.map(line => (
-              <div key={line.id} className="flex items-center justify-between text-sm p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium">{line.description}</p>
-                  <p className="text-xs text-gray-500">{line.qty} × {fmt(Number(line.unitPrice))}</p>
-                </div>
-                <div className="text-left">
-                  <p className="font-semibold" dir="ltr">{fmt(Number(line.total))}</p>
-                  <Link href={`/billing/${line.invoice.id}`} className="text-xs text-primary-600 hover:underline">
-                    {INV_STATUS[line.invoice.status] ?? line.invoice.status}
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      {/* ─── Money: the session's value on the patient's account ───────── */}
+      <div className="empty:hidden">
+        <PatientAccountCard
+          patientId={data.patient.id}
+          charged={charged}
+          chargedLabel={data.program ? "قيمة هذه الجلسة (ضمن البرنامج)" : "قيمة الجلسة على حساب المريض"}
+          chargedHint={
+            data.program
+              ? "مقيّدة على الحساب ضمن قيمة البرنامج"
+              : charged === 0 ? "غير محتسبة على المريض" : undefined
+          }
+        />
       </div>
 
       {/* ─── Commission panel ──────────────────────────────────────── */}

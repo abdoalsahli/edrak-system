@@ -114,8 +114,8 @@ export default function SettlementsPage() {
                   <th className="px-4 py-2.5 text-start font-medium">التاريخ</th>
                   <th className="px-4 py-2.5 text-start font-medium">النوع</th>
                   <th className="px-4 py-2.5 text-start font-medium">البيان</th>
-                  <th className="px-4 py-2.5 text-start font-medium">مدين</th>
-                  <th className="px-4 py-2.5 text-start font-medium">دائن</th>
+                  <th className="px-4 py-2.5 text-start font-medium">من حساب</th>
+                  <th className="px-4 py-2.5 text-start font-medium">إلى حساب</th>
                   <th className="px-4 py-2.5 text-start font-medium">المبلغ</th>
                 </tr>
               </thead>
@@ -126,8 +126,9 @@ export default function SettlementsPage() {
                     <td className="px-4 py-2.5 whitespace-nowrap">{fmtDate(s.date)}</td>
                     <td className="px-4 py-2.5"><Badge variant="gray">{TYPE_AR[s.type] ?? s.type}</Badge></td>
                     <td className="px-4 py-2.5">{s.description}</td>
-                    <td className="px-4 py-2.5"><AccountLink a={s.debitAccount} /></td>
+                    {/* The amount leaves the credited account and enters the debited one */}
                     <td className="px-4 py-2.5"><AccountLink a={s.creditAccount} /></td>
+                    <td className="px-4 py-2.5"><AccountLink a={s.debitAccount} /></td>
                     <td className="px-4 py-2.5 font-semibold" dir="ltr">{money(s.amount)}</td>
                   </tr>
                 ))}

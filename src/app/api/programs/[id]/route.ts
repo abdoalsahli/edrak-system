@@ -6,6 +6,7 @@ import { recalcProgramInvoice } from "@/lib/billing/InvoiceService";
 import { syncProgramCommissionLedger } from "@/lib/ledger/LedgerService";
 import { z } from "zod";
 import { addDays } from "date-fns";
+import { previousPackage, extensionTotals, splitAmount } from "@/lib/programs/packageTotals";
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const auth = await requireAuth();
@@ -113,14 +114,24 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (!parsed.success) return badRequest(parsed.error.flatten().fieldErrors);
     const d = parsed.data;
 
-    const prog = await prisma.program.findUnique({ where: { id: params.id } });
+    const prog = await prisma.program.findUnique({
+      where: { id: params.id },
+      include: { sessions: { select: { programSequenceNumber: true, price: true, commissionAmount: true } } },
+    });
     if (!prog) return notFound();
+
+    // The extension costs what the previous package cost (e.g. 600 for 12 sessions),
+    // not the rounded per-session value times the sessions
+    const count = d.appointments.length;
+    const totals = extensionTotals(previousPackage(prog.sessions, prog.originalPlannedSessions), count);
+    const prices = splitAmount(totals.value, count);
+    const commissions = splitAmount(totals.commission, count);
 
     const sortedApts = [...d.appointments].sort((a, b) => a.date.localeCompare(b.date));
     const lastDate = sortedApts[sortedApts.length - 1]?.date;
 
     await prisma.$transaction(async (tx) => {
-      for (const apt of d.appointments) {
+      for (const [i, apt] of d.appointments.entries()) {
         const session = await tx.session.create({
           data: {
             patientId: prog.patientId,
@@ -128,13 +139,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
             programId: prog.id,
             programSequenceNumber: apt.sequenceNumber,
             status: "PENDING",
-            // Extended sessions inherit the program's agreed price and commission
-            price: prog.sessionPrice,
-            commissionAmount: prog.sessionCommission,
+            // Each new session's share of the extension's totals
+            price: prices[i],
+            commissionAmount: commissions[i],
             createdBy: userId,
           },
         });
-        if (prog.sessionCommission && Number(prog.sessionCommission) > 0) {
+        if (commissions[i] > 0) {
           await tx.therapistCommission.create({
             data: {
               therapistId:    prog.therapistId,
@@ -142,7 +153,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
               commissionType: "FIXED",
               rate:           null,
               baseAmount:     null,
-              amount:         prog.sessionCommission,
+              amount:         commissions[i],
               isEarned:       false,
             },
           });

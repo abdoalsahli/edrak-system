@@ -14,6 +14,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { AreaChart } from "@/components/ui/AreaChart";
 import { RecentDocuments } from "@/components/finance/RecentDocuments";
 import { range12 } from "@/lib/time12";
+import { TasksBanner } from "@/components/casePlans/TasksBanner";
 
 const money = (n: number) => `${n.toLocaleString("en-US", { maximumFractionDigits: 2 })} د.ل`;
 
@@ -145,6 +146,7 @@ export default async function DashboardPage() {
     return (
       <div>
         <PageHeader title="لوحة التحكم" description={subtitle} />
+        <TasksBanner mode="manager" />
 
         <div className="mb-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="البرامج النشطة" value={activePrograms} icon={ClipboardList} tone="primary" />

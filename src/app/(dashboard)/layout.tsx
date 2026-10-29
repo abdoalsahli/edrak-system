@@ -15,9 +15,9 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Sidebar userRole={user.role} userName={user.name ?? ""} />
-      <main className="min-h-screen pr-64">
-        <div className="p-8">{children}</div>
+      <div className="print:hidden"><Sidebar userRole={user.role} userName={user.name ?? ""} /></div>
+      <main className="min-h-screen pr-64 print:pr-0">
+        <div className="p-8 print:p-0">{children}</div>
       </main>
     </div>
   );

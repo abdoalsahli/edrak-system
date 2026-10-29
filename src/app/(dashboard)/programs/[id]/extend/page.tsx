@@ -7,11 +7,13 @@ import { format } from "date-fns";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ScheduleRhythmFields, WEEKS_PER_PROGRAM, daysMatch, daysMismatchMessage } from "@/components/programs/ScheduleRhythmFields";
 import { ScheduleCalendar, ScheduleWarnings, fmtDateAr, type ProposedApt } from "@/components/programs/ScheduleCalendar";
+import { previousPackage, extensionTotals } from "@/lib/programs/packageTotals";
 
 type ProgramSummary = {
   id: string;
   status: string;
   plannedSessions: number;
+  originalPlannedSessions: number;
   sessionsPerWeek: number;
   sessionPrice: number | string | null;
   sessionCommission: number | string | null;
@@ -22,11 +24,12 @@ type ProgramSummary = {
   expectedEndDate: string;
   sessions: {
     programSequenceNumber: number | null;
+    price: number | string | null;
+    commissionAmount: number | string | null;
     appointments: { date: string; startTime: string; endTime: string; status: string }[];
   }[];
 };
 
-const r2 = (n: number) => Math.round(n * 100) / 100;
 const minutes = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
 
 export default function ExtendProgramPage() {
@@ -138,12 +141,16 @@ export default function ExtendProgramPage() {
   if (!program) return <div className="text-gray-400 p-8 text-center">جارٍ التحميل...</div>;
 
   const subtitle = `${program.service.name} — ${program.patient.fullName}`;
+  // The extension costs what the previous package cost — the same rule as the server
+  const prev = previousPackage(program.sessions, program.originalPlannedSessions);
+  const money = (n: number) => `${n.toLocaleString("en-US", { maximumFractionDigits: 2 })} د.ل`;
+  const basis = (added: number) =>
+    added === prev.count
+      ? `نفس إجمالي الباقة السابقة (${prev.count} جلسة)`
+      : `بالتناسب مع الباقة السابقة: ${money(prev.value)} لـ ${prev.count} جلسة`;
 
   if (proposed !== null) {
-    const unitPrice = Number(program.sessionPrice ?? 0);
-    const unitCommission = Number(program.sessionCommission ?? 0);
-    const addedValue = r2(unitPrice * proposed.length);
-    const addedCommission = r2(unitCommission * proposed.length);
+    const added = extensionTotals(prev, proposed.length);
 
     return (
       <div className="max-w-4xl">
@@ -152,7 +159,7 @@ export default function ExtendProgramPage() {
         <div className="grid grid-cols-4 gap-3 mb-5">
           {[
             { label: "جلسات إضافية", value: proposed.length, color: "text-primary-700 bg-primary-50" },
-            { label: "قيمة التمديد", value: `${addedValue.toFixed(2)} د.ل`, color: "text-blue-700 bg-blue-50" },
+            { label: "قيمة التمديد", value: money(added.value), color: "text-blue-700 bg-blue-50" },
             { label: "من", value: proposed[0] ? fmtDateAr(proposed[0].date).split("،")[1].trim() : "—", color: "text-gray-700 bg-gray-50" },
             { label: "إلى", value: proposed.at(-1) ? fmtDateAr(proposed.at(-1)!.date).split("،")[1].trim() : "—", color: "text-gray-700 bg-gray-50" },
           ].map((s) => (
@@ -169,16 +176,16 @@ export default function ExtendProgramPage() {
 
         <div className="card p-4 mt-4 grid grid-cols-3 gap-4 text-sm">
           <div>
-            <p className="text-xs text-gray-500">قيمة الجلسة (كما في البرنامج)</p>
-            <p className="font-bold text-gray-800 mt-0.5" dir="ltr">{unitPrice.toFixed(2)} د.ل</p>
+            <p className="text-xs text-gray-500">قيمة التمديد على المريض</p>
+            <p className="font-bold text-gray-800 mt-0.5">{money(added.value)}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-500">عمولة الأخصائي من كل جلسة</p>
-            <p className="font-bold text-amber-700 mt-0.5" dir="ltr">{unitCommission.toFixed(2)} د.ل</p>
+            <p className="text-xs text-gray-500">عمولة الأخصائي عن التمديد</p>
+            <p className="font-bold text-amber-700 mt-0.5">{money(added.commission)}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-500">عمولة التمديد</p>
-            <p className="font-bold text-amber-700 mt-0.5" dir="ltr">{addedCommission.toFixed(2)} د.ل</p>
+            <p className="text-xs text-gray-500">أساس الحساب</p>
+            <p className="font-medium text-gray-700 mt-0.5 text-xs leading-5">{basis(proposed.length)}</p>
           </div>
         </div>
         <p className="text-xs text-gray-400 mt-2">
@@ -224,10 +231,17 @@ export default function ExtendProgramPage() {
           totalLabel="الجلسات الإضافية"
         />
 
-        {Number(program.sessionPrice ?? 0) > 0 && totalSessions > 0 && (
-          <div className="bg-primary-50 border border-primary-100 rounded-xl px-4 py-3 text-sm text-primary-900 flex items-center justify-between">
-            <span>قيمة التمديد ({totalSessions} × {Number(program.sessionPrice).toFixed(2)})</span>
-            <span className="font-bold" dir="ltr">{r2(Number(program.sessionPrice) * totalSessions).toFixed(2)} د.ل</span>
+        {prev.value > 0 && totalSessions > 0 && (
+          <div className="bg-primary-50 border border-primary-100 rounded-xl px-4 py-3 text-sm text-primary-900 space-y-1">
+            <div className="flex items-center justify-between">
+              <span>قيمة التمديد</span>
+              <span className="font-bold">{money(extensionTotals(prev, totalSessions).value)}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs text-primary-800/80">
+              <span>عمولة الأخصائي</span>
+              <span className="font-semibold">{money(extensionTotals(prev, totalSessions).commission)}</span>
+            </div>
+            <p className="text-xs text-primary-800/70">{basis(totalSessions)}</p>
           </div>
         )}
 

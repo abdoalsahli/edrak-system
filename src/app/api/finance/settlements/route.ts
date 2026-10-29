@@ -19,7 +19,7 @@ const CreateSchema = z
     path: ["debitAccountId"],
   })
   .refine((d) => d.type !== "TRANSFER" || (d.debitAccountId && d.creditAccountId), {
-    message: "التحويل يحتاج حساباً مديناً وحساباً دائناً",
+    message: "التحويل يحتاج حساباً تُحوِّل منه وحساباً تُحوِّل إليه",
     path: ["creditAccountId"],
   });
 

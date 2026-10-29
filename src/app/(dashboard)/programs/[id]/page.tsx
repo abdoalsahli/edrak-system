@@ -12,8 +12,8 @@ import { Modal } from "@/components/ui/Modal";
 import { StatCard } from "@/components/ui/StatCard";
 import { CalendarCog, PlusCircle, Ban, CheckCircle2, ClipboardList, Wallet, Percent } from "lucide-react";
 import { range12 } from "@/lib/time12";
+import { CycleList } from "@/components/casePlans/CycleList";
 
-const moneyLD = (n: number) => `${n.toLocaleString("en-US", { maximumFractionDigits: 2 })} د.ل`;
 
 const SESSION_STATUS: Record<string, { label: string; variant: "success" | "danger" | "warning" | "gray" | "default" }> = {
   PENDING: { label: "مجدولة", variant: "default" },
@@ -28,20 +28,6 @@ const PROG_STATUS: Record<string, { label: string; variant: "success" | "danger"
   COMPLETED: { label: "مكتمل", variant: "info" },
   EXTENDED: { label: "ممتد", variant: "warning" },
   CANCELLED: { label: "ملغي", variant: "danger" },
-};
-
-type BillingCycleRow = {
-  id: string;
-  cycleNumber: number;
-  cycleType: string;
-  periodStart: string;
-  periodEnd: string;
-  expectedSessions: number;
-  status: string;
-  invoices: {
-    id: string; status: string;
-    totalAmount: number; paidAmount: number; issueDate: string;
-  }[];
 };
 
 type ProgramData = {
@@ -61,7 +47,6 @@ type ProgramData = {
   therapist: { id: string; fullName: string };
   service:   { name: string; defaultDurationMin: number };
   sessions:  SessionRow[];
-  billingCycles: BillingCycleRow[];
 };
 
 type SessionRow = {
@@ -165,6 +150,11 @@ export default function ProgramDetailPage() {
         )}
       </div>
 
+      {/* Plans and follow-up reports (manager only — hidden for reception) */}
+      <div className="mb-6 empty:hidden">
+        <CycleList programId={id} basePath={`/programs/${id}/cycles`} />
+      </div>
+
       {/* Sessions */}
       <div className="card p-6">
         <div className="mb-3 flex items-center justify-between">
@@ -207,83 +197,6 @@ export default function ProgramDetailPage() {
       </div>
 
       {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
-
-      {/* ─── Billing cycles ──────────────────────────────────────── */}
-      <div className="card mt-6">
-        <div className="flex items-center justify-between border-b border-gray-300/70 px-6 py-4">
-          <h2 className="text-lg font-semibold text-gray-800">الفوترة</h2>
-          <Link href={`/billing/new?programId=${id}`} className="text-xs text-primary-600 hover:underline">
-            + دورة فوترة جديدة
-          </Link>
-        </div>
-        {(!data.billingCycles || data.billingCycles.length === 0) ? (
-          <div className="p-6 text-center text-sm text-gray-400">
-            لا توجد دورات فوترة — انقر &quot;+ دورة فوترة جديدة&quot; للبدء
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {data.billingCycles.map(cycle => {
-              const cycleTotal = cycle.invoices.reduce((s, i) => s + Number(i.totalAmount), 0);
-              const cyclePaid  = cycle.invoices.reduce((s, i) => s + Number(i.paidAmount), 0);
-              const CYCLE_STATUS: Record<string, string> = { OPEN: "مفتوحة", INVOICED: "مُفوترة", CLOSED: "مغلقة" };
-              return (
-                <div key={cycle.id} className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <span className="font-medium text-sm">دورة {cycle.cycleNumber}</span>
-                      <span className="text-xs text-gray-500 mx-2" dir="ltr">
-                        {format(new Date(cycle.periodStart), "d MMM", { locale: arSA })} –{" "}
-                        {format(new Date(cycle.periodEnd),   "d MMM yyyy", { locale: arSA })}
-                      </span>
-                      <span className="text-xs text-gray-400">({cycle.expectedSessions} جلسة مخططة)</span>
-                    </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      cycle.status === "CLOSED" ? "bg-green-100 text-green-700" :
-                      cycle.status === "INVOICED" ? "bg-blue-100 text-blue-700" :
-                      "bg-yellow-100 text-yellow-700"
-                    }`}>{CYCLE_STATUS[cycle.status] ?? cycle.status}</span>
-                  </div>
-                  {cycle.invoices.length === 0 ? (
-                    <p className="text-xs text-gray-400 mt-1">لا توجد فواتير لهذه الدورة</p>
-                  ) : (
-                    <div className="space-y-1 mt-2">
-                      {cycle.invoices.map(inv => (
-                        <div key={inv.id} className="flex items-center justify-between text-xs bg-gray-50 rounded px-3 py-2">
-                          <Link href={`/billing/${inv.id}`} className="text-primary-600 hover:underline">
-                            فاتورة — {format(new Date(inv.issueDate), "d MMM yyyy", { locale: arSA })}
-                          </Link>
-                          <div className="flex items-center gap-3" dir="ltr">
-                            <span className="text-gray-500">
-                              {moneyLD(Number(inv.paidAmount))}
-                              {" / "}
-                              {moneyLD(Number(inv.totalAmount))}
-                            </span>
-                            <span className={`px-1.5 py-0.5 rounded ${
-                              inv.status === "PAID" ? "bg-green-100 text-green-700" :
-                              inv.status === "PARTIAL" ? "bg-yellow-100 text-yellow-700" :
-                              "bg-gray-100 text-gray-600"
-                            }`}>
-                              {{ DRAFT:"مسودة", ISSUED:"صادرة", PARTIAL:"جزئي", PAID:"مدفوع", VOID:"ملغي" }[inv.status] ?? inv.status}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="flex justify-between text-xs font-medium px-3 pt-1 text-gray-600">
-                        <span>الإجمالي</span>
-                        <span dir="ltr">
-                          {moneyLD(cyclePaid)}
-                          {" / "}
-                          {moneyLD(cycleTotal)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
 
       {/* Cancel Modal */}
       <Modal open={cancelModal} onClose={() => setCancelModal(false)} title="إلغاء البرنامج">

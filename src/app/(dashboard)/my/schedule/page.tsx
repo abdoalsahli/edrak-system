@@ -5,6 +5,7 @@ import { addDays, addWeeks, endOfWeek, format, isSameDay, parseISO, startOfWeek,
 import { arSA } from "date-fns/locale";
 import { readApiError } from "@/lib/apiError";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { TasksBanner } from "@/components/casePlans/TasksBanner";
 import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { AlertTriangle } from "lucide-react";
@@ -126,6 +127,7 @@ export default function MySchedulePage() {
   return (
     <div className="max-w-3xl">
       <PageHeader title="جدولي" description="جلساتك وتسجيل نتيجتها" />
+      <TasksBanner mode="therapist" />
 
       {overdue.length > 0 && (
         <div className="card border-amber-200 mb-5 overflow-hidden">

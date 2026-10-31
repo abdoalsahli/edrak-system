@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { to12 } from "@/lib/time12";
 import { ScheduleRhythmFields, DAY_AR, daysMatch, daysMismatchMessage } from "@/components/programs/ScheduleRhythmFields";
 import { ScheduleCalendar, ScheduleWarnings, fmtDateAr, type ProposedApt } from "@/components/programs/ScheduleCalendar";
+import { weekIndex } from "@/lib/week";
 
 type Apt = { date: string; startTime: string; endTime: string; status: string };
 type ProgramData = {
@@ -111,7 +112,7 @@ export default function EditProgramPage() {
 
   // Current rhythm, for reference
   const upcomingApts = pending.map((s) => s.appointments.find((a) => a.status === "SCHEDULED")).filter((a): a is Apt => !!a);
-  const currentDays = [...new Set(upcomingApts.map((a) => new Date(a.date).getDay()))].sort().map((d) => DAY_AR[d]).join("، ");
+  const currentDays = [...new Set(upcomingApts.map((a) => new Date(a.date).getDay()))].sort((a, b) => weekIndex(a) - weekIndex(b)).map((d) => DAY_AR[d]).join("، ");
   const currentTimes = [...new Set(upcomingApts.map((a) => a.startTime))].map(to12).join("، ");
 
   async function generatePreview(e: React.FormEvent) {
@@ -160,7 +161,7 @@ export default function EditProgramPage() {
   async function savePrice(e: React.FormEvent) {
     e.preventDefault();
     if (!program) return;
-    const msg = `سيتم تعديل قيمة البرنامج من ${money(currentTotal)} إلى ${money(newTotal)}، وتُرحَّل الفروقات إلى حساب المريض وحساب الأخصائي. متابعة؟`;
+    const msg = `سيتم تعديل قيمة البرنامج من ${money(currentTotal)} إلى ${money(newTotal)}، وتُرحَّل الفروقات إلى حساب الحالة وحساب الأخصائي. متابعة؟`;
     if (Math.abs(newTotal - currentTotal) > 0.005 && !confirm(msg)) return;
     setSavingPrice(true); setPriceError(""); setNotice("");
     const res = await fetch(`/api/programs/${id}`, {
@@ -328,7 +329,7 @@ export default function EditProgramPage() {
           </div>
           {Math.abs(newTotal - currentTotal) > 0.005 && (
             <p className="text-xs text-primary-700 pt-1">
-              يُرحَّل الفرق ({money(Math.abs(newTotal - currentTotal))}) {newTotal > currentTotal ? "على" : "لصالح"} حساب المريض كقيد تعديل واحد، ويُعدَّل حساب الأخصائي بالمثل.
+              يُرحَّل الفرق ({money(Math.abs(newTotal - currentTotal))}) {newTotal > currentTotal ? "على" : "لصالح"} حساب الحالة كقيد تعديل واحد، ويُعدَّل حساب الأخصائي بالمثل.
             </p>
           )}
         </div>

@@ -24,13 +24,13 @@ type Account = {
 
 const KIND_TABS: { key: "" | Kind; label: string }[] = [
   { key: "", label: "الكل" },
-  { key: "PATIENT", label: "المرضى" },
+  { key: "PATIENT", label: "الحالات" },
   { key: "THERAPIST", label: "الأخصائيون" },
   { key: "EXPENSE", label: "المصروفات" },
   { key: "CUSTOM", label: "حسابات عامة" },
 ];
 
-const KIND_AR: Record<Kind, string> = { PATIENT: "مريض", THERAPIST: "أخصائي", EXPENSE: "مصروف", CUSTOM: "عام" };
+const KIND_AR: Record<Kind, string> = { PATIENT: "حالة", THERAPIST: "أخصائي", EXPENSE: "مصروف", CUSTOM: "عام" };
 
 const money = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -169,7 +169,7 @@ export default function AccountsPage() {
       </div>
 
       <p className="text-xs text-gray-400 mt-3">
-        حسابات المرضى والأخصائيين تُنشأ تلقائياً مع أصحابها. الحساب <strong>المدين</strong> بطبيعته رصيده = المدين − الدائن (مثل المرضى والمصروفات)،
+        حسابات الحالات والأخصائيين تُنشأ تلقائياً مع أصحابها. الحساب <strong>المدين</strong> بطبيعته رصيده = المدين − الدائن (مثل الحالات والمصروفات)،
         و<strong>الدائن</strong> بطبيعته رصيده = الدائن − المدين (مثل الأخصائيين والجهات التي ندين لها).
       </p>
 

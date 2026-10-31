@@ -19,7 +19,7 @@ export type SettlementValue = {
 };
 
 const BALANCE_WORD: Record<AccountKind, string> = {
-  PATIENT: "المستحق على المريض",
+  PATIENT: "المستحق على الحالة",
   THERAPIST: "المستحق للأخصائي",
   EXPENSE: "رصيد المصروف",
   CUSTOM: "رصيد الحساب",

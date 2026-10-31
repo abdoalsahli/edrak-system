@@ -45,11 +45,11 @@ export default async function PatientsPage({
   return (
     <div>
       <PageHeader
-        title="المرضى"
-        description={`${total} مريض مسجل`}
+        title="الحالات"
+        description={total === 1 ? "حالة واحدة مسجلة" : total === 2 ? "حالتان مسجلتان" : total >= 3 && total <= 10 ? `${total} حالات مسجلة` : `${total} حالة مسجلة`}
         action={
           <Link href="/patients/new" className="btn-primary">
-            + تسجيل مريض جديد
+            + تسجيل حالة جديدة
           </Link>
         }
       />
@@ -68,12 +68,12 @@ export default async function PatientsPage({
 
         {patients.length === 0 ? (
           <EmptyState
-            title="لا يوجد مرضى"
-            description={q ? "لم يتطابق أي مريض مع البحث" : "ابدأ بتسجيل أول مريض"}
+            title="لا توجد حالات"
+            description={q ? "لم تتطابق أي حالة مع البحث" : "ابدأ بتسجيل أول حالة"}
             action={
               !q ? (
                 <Link href="/patients/new" className="btn-primary">
-                  تسجيل مريض جديد
+                  تسجيل حالة جديدة
                 </Link>
               ) : undefined
             }
@@ -86,7 +86,7 @@ export default async function PatientsPage({
                 <Th>النوع</Th>
                 <Th>الهاتف</Th>
                 <Th>ولي الأمر</Th>
-                <Th>الحالة</Th>
+                <Th>الوضع</Th>
                 <Th></Th>
               </tr>
             </Thead>
@@ -105,7 +105,7 @@ export default async function PatientsPage({
                   <Td>{p.guardian?.fullName ?? "—"}</Td>
                   <Td>
                     <Badge variant={p.isActive ? "success" : "gray"}>
-                      {p.isActive ? "نشط" : "غير نشط"}
+                      {p.isActive ? "نشطة" : "غير نشطة"}
                     </Badge>
                   </Td>
                   <Td>

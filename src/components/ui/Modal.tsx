@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 
-// Modals can stack (e.g. «مريض جديد» over «جلسة جديدة»): unlock scrolling only when the last one closes
+// Modals can stack (e.g. «حالة جديدة» over «جلسة جديدة»): unlock scrolling only when the last one closes
 let openCount = 0;
 
 export function Modal({

@@ -155,7 +155,7 @@ export default async function ReportsPage({
         <Table>
           <Thead>
             <tr>
-              <Th>المريض</Th>
+              <Th>الحالة</Th>
               <Th>الخدمة</Th>
               <Th>المعالج</Th>
               <Th>مخطط</Th>

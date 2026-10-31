@@ -96,7 +96,7 @@ export default async function DashboardPage() {
           </div>
 
           <div className="card p-6">
-            <h2 className="mb-4 text-lg font-semibold text-gray-800">أرصدة مستحقة على المرضى</h2>
+            <h2 className="mb-4 text-lg font-semibold text-gray-800">أرصدة مستحقة على الحالات</h2>
             {patientsWithBalance.length === 0 ? (
               <p className="py-8 text-center text-sm text-gray-400">لا توجد أرصدة مستحقة</p>
             ) : (
@@ -150,13 +150,13 @@ export default async function DashboardPage() {
 
         <div className="mb-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="البرامج النشطة" value={activePrograms} icon={ClipboardList} tone="primary" />
-          <StatCard label="المرضى النشطون" value={activePatients} icon={Users} tone="info" />
+          <StatCard label="الحالات النشطة" value={activePatients} icon={Users} tone="info" />
           <StatCard label="جلسات الشهر" value={monthSessions} icon={CalendarDays} tone="success" />
           <StatCard label="نسبة الغياب" value={`${absentRate}%`} icon={UserX} tone="danger" />
         </div>
         <div className="mb-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="المحصّل هذا الشهر" value={money(collected)} icon={Wallet} tone="success" />
-          <StatCard label="المستحق على المرضى" value={money(ledger.totals.receivable)} icon={HandCoins} tone="warning" />
+          <StatCard label="المستحق على الحالات" value={money(ledger.totals.receivable)} icon={HandCoins} tone="warning" />
           <StatCard label="المستحق للأخصائيين" value={money(ledger.totals.payable)} icon={Stethoscope} tone="primary" />
           <StatCard label="المعالجون" value={therapistCount} icon={Users} tone="info" />
         </div>
@@ -208,7 +208,7 @@ export default async function DashboardPage() {
         <PageHeader title="لوحة التحكم" description={subtitle} />
 
         <div className="mb-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="المستحق على المرضى" value={money(ledger.totals.receivable)} icon={HandCoins} tone="warning" />
+          <StatCard label="المستحق على الحالات" value={money(ledger.totals.receivable)} icon={HandCoins} tone="warning" />
           <StatCard label="المستحق للأخصائيين" value={money(ledger.totals.payable)} icon={Stethoscope} tone="primary" />
           <StatCard label="المحصّل هذا الشهر" value={money(Number(monthCollected._sum.amount ?? 0))} icon={Wallet} tone="success" />
           <StatCard label="فواتير مسودة" value={draftInvoices} icon={FileWarning} tone="danger" />

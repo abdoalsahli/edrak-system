@@ -67,7 +67,7 @@ export function VoucherModal({
     if (kind !== "payment" || !account || description) return;
     setDescription(
       account.kind === "THERAPIST" ? `صرف لحساب الأخصائي — ${account.name}`
-      : account.kind === "PATIENT" ? `استرداد للمريض — ${account.name}`
+      : account.kind === "PATIENT" ? `استرداد للحالة — ${account.name}`
       : account.kind === "EXPENSE" ? account.name
       : `صرف — ${account.name}`
     );

@@ -1,5 +1,7 @@
 "use client";
 
+import { WEEK_ORDER } from "@/lib/week";
+
 /** Default programme length: the total follows sessions-per-week × 4 weeks. */
 export const WEEKS_PER_PROGRAM = 4;
 
@@ -77,7 +79,8 @@ export function ScheduleRhythmFields({
           <span className="text-xs font-normal text-gray-400 ms-2">اختر {daysAr(sessionsPerWeek)}</span>
         </label>
         <div className="flex gap-2 flex-wrap">
-          {DAY_AR.map((name, i) => {
+          {WEEK_ORDER.map((i) => {
+            const name = DAY_AR[i];
             const selected = allowedDays.includes(i);
             // Once the weekly count is reached, the other days lock until one is unselected
             const locked = !selected && allowedDays.length >= sessionsPerWeek;

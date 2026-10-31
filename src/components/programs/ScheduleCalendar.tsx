@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DAY_AR } from "./ScheduleRhythmFields";
+import { WEEK_ORDER, weekIndex } from "@/lib/week";
 import { Info, AlertTriangle } from "lucide-react";
 import { to12 } from "@/lib/time12";
 
@@ -25,11 +26,11 @@ function buildMonthGrid(monthKey: string) {
   const [y, m] = monthKey.split("-").map(Number);
   const firstDay = new Date(y, m - 1, 1);
   const lastDay = new Date(y, m, 0);
-  // From the Sunday of the first week to the Saturday of the last
+  // From the Saturday of the first week to the Friday of the last
   const start = new Date(firstDay);
-  start.setDate(firstDay.getDate() - firstDay.getDay());
+  start.setDate(firstDay.getDate() - weekIndex(firstDay.getDay()));
   const end = new Date(lastDay);
-  end.setDate(lastDay.getDate() + (6 - lastDay.getDay()));
+  end.setDate(lastDay.getDate() + (6 - weekIndex(lastDay.getDay())));
   const cells: Date[] = [];
   for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) cells.push(new Date(d));
   return { cells, firstDay };
@@ -78,7 +79,7 @@ export function ScheduleCalendar({
               </div>
 
               <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50/50">
-                {DAY_AR.map((d) => (
+                {WEEK_ORDER.map((i) => DAY_AR[i]).map((d) => (
                   <div key={d} className="text-center py-1.5 text-xs font-medium text-gray-400">{d.slice(0, 3)}</div>
                 ))}
               </div>

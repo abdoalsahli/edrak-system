@@ -10,7 +10,7 @@ type Nature = "DEBIT" | "CREDIT";
 export type AccountOption = { id: string; code: string; name: string; kind: Kind; nature: Nature; balance?: number };
 
 const KIND_GROUP: Record<Kind, string> = {
-  PATIENT: "المرضى",
+  PATIENT: "الحالات",
   THERAPIST: "الأخصائيون",
   EXPENSE: "المصروفات",
   CUSTOM: "حسابات عامة",

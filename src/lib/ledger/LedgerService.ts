@@ -34,7 +34,7 @@ export class LedgerError extends Error {}
 // ─── Labels ──────────────────────────────────────────────────────────────────
 
 export const ACCOUNT_KIND_AR: Record<AccountKind, string> = {
-  PATIENT: "مريض",
+  PATIENT: "حالة",
   THERAPIST: "أخصائي",
   EXPENSE: "مصروف",
   CUSTOM: "حساب عام",
@@ -93,7 +93,7 @@ export async function getPatientAccountId(tx: Tx, patientId: string): Promise<st
   const acc = await tx.ledgerAccount.create({
     data: {
       code: await nextAccountCode(tx, "PATIENT"),
-      name: patient?.fullName ?? "مريض",
+      name: patient?.fullName ?? "حالة",
       kind: "PATIENT",
       nature: "DEBIT",
       patientId,
@@ -279,6 +279,52 @@ async function syncSourceOnAccount(
     sourceId: o.sourceId,
     reference: o.reference,
   });
+}
+
+// ─── Opening balances of patients and therapists ────────────────────────────
+
+/** A patient or a therapist — whose current account holds the opening balance. */
+export type OpeningParty = { patientId: string } | { therapistId: string };
+
+const partySourceId = (p: OpeningParty) => ("patientId" in p ? p.patientId : p.therapistId);
+
+/**
+ * الرصيد الافتتاحي — what was owed before the system started, as one OPENING
+ * entry on the party's account. `amount` is in the account's own direction:
+ * for a patient, positive = owes the centre; for a therapist, positive = is
+ * owed by the centre (negative = an advance). Changing it later posts only the
+ * difference, as «تعديل الرصيد الافتتاحي».
+ */
+export async function setOpeningBalance(tx: Tx, party: OpeningParty, amount: number, date?: Date | null) {
+  const isPatient = "patientId" in party;
+  const accountId = isPatient ? await getPatientAccountId(tx, party.patientId) : await getTherapistAccountId(tx, party.therapistId);
+  await syncSourceOnAccount(tx, {
+    accountId,
+    sourceType: "OPENING",
+    sourceId: partySourceId(party),
+    // Debit-positive: a patient's debt is a debit, a therapist's due a credit
+    targetNet: isPatient ? r2(amount) : -r2(amount),
+    firstDate: date ?? new Date(),
+    firstDescription: "رصيد افتتاحي",
+    adjustDescription: "تعديل الرصيد الافتتاحي",
+  });
+}
+
+/** The opening balance as entered (same direction as setOpeningBalance), and its date. */
+export async function getOpeningBalance(db: Tx, party: OpeningParty): Promise<{ amount: number; date: Date | null }> {
+  const isPatient = "patientId" in party;
+  const account = await db.ledgerAccount.findUnique({
+    where: isPatient ? { patientId: party.patientId } : { therapistId: party.therapistId },
+    select: { id: true },
+  });
+  if (!account) return { amount: 0, date: null };
+  const where = { accountId: account.id, sourceType: "OPENING" as const, sourceId: partySourceId(party) };
+  const [agg, first] = await Promise.all([
+    db.ledgerEntry.aggregate({ where, _sum: { debit: true, credit: true } }),
+    db.ledgerEntry.findFirst({ where, orderBy: { createdAt: "asc" }, select: { date: true } }),
+  ]);
+  const net = r2(Number(agg._sum.debit ?? 0) - Number(agg._sum.credit ?? 0));
+  return { amount: isPatient ? net : -net, date: first?.date ?? null };
 }
 
 /** Remove every entry of a source — only for documents booked by mistake and deleted. */

@@ -52,7 +52,7 @@ export function toPatientPayload(form: PatientForm) {
 }
 
 /**
- * Patient registration fields, shared by the «مريض جديد» page and the quick-add
+ * Patient registration fields, shared by the «حالة جديدة» page and the quick-add
  * modal. `framed` puts each section in its own card (full page); otherwise the
  * sections are stacked compactly for a modal.
  */
@@ -77,7 +77,7 @@ export function PatientFields({
     <>
       {/* Patient type */}
       <div className={section}>
-        <h2 className={heading}>نوع المريض</h2>
+        <h2 className={heading}>نوع الحالة</h2>
         <div className="flex gap-4">
           {(["ADULT", "CHILD"] as const).map((t) => (
             <label key={t} className="flex items-center gap-2 cursor-pointer">
@@ -110,7 +110,7 @@ export function PatientFields({
               value={form.fullName}
               onChange={(e) => set("fullName", e.target.value)}
               className="input"
-              placeholder="الاسم الكامل للمريض"
+              placeholder="الاسم الكامل للحالة"
             />
           </div>
           <div>

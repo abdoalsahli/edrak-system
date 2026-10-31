@@ -70,7 +70,7 @@ export default async function BillingPage({ searchParams }: { searchParams: { pa
   return (
     <div>
       <PageHeader
-        title="السندات والتسويات"
+        title="الحركات المالية"
         action={<Link href="/billing/new" className="btn-primary">+ فاتورة جديدة</Link>}
       />
       <SectionTabs tabs={DOCUMENT_TABS} />
@@ -114,7 +114,7 @@ export default async function BillingPage({ searchParams }: { searchParams: { pa
           <Table>
             <Thead>
               <tr>
-                <Th>المريض</Th>
+                <Th>الحالة</Th>
                 <Th>الخدمة</Th>
                 <Th>المبلغ</Th>
                 <Th>تاريخ الإصدار</Th>

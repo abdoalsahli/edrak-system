@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccountStatement, getPatientAccountId } from "@/lib/ledger/LedgerService";
 
 /**
- * كشف حساب المريض — now read straight from the patient's current account.
+ * كشف حساب الحالة — now read straight from the patient's current account.
  * Kept for existing links; the statement itself lives in the ledger.
  */
 export async function GET(req: Request, { params }: { params: { id: string } }) {

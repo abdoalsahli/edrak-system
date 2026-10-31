@@ -87,7 +87,7 @@ export default function VouchersPage() {
   return (
     <div>
       <PageHeader
-        title="السندات والتسويات"
+        title="الحركات المالية"
         description="كل المبالغ الصادرة من صناديق المركز"
         action={<button onClick={() => setCreating(true)} className="btn-primary text-sm">+ سند صرف</button>}
       />

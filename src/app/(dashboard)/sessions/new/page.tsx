@@ -73,9 +73,9 @@ export default function NewSessionPage() {
 
       <form onSubmit={handleSubmit} className="card p-6 space-y-4">
         <div>
-          <label className="label">المريض <span className="text-red-500">*</span></label>
+          <label className="label">الحالة <span className="text-red-500">*</span></label>
           <select required value={patientId} onChange={(e) => setPatientId(e.target.value)} className="input">
-            <option value="">— اختر مريضاً —</option>
+            <option value="">— اختر حالة —</option>
             {patients.map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}
           </select>
         </div>

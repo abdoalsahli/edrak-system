@@ -18,7 +18,7 @@ const SESSION_STATUS: Record<string, { label: string; variant: "success" | "dang
   PENDING: { label: "مجدولة", variant: "default" },
   COMPLETED: { label: "حضر", variant: "success" },
   ABSENT: { label: "غياب", variant: "danger" },
-  CANCELLED_BY_PATIENT: { label: "ألغى المريض", variant: "gray" },
+  CANCELLED_BY_PATIENT: { label: "ألغت الحالة", variant: "gray" },
   CANCELLED_BY_CENTER: { label: "ألغى المركز", variant: "gray" },
 };
 

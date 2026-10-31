@@ -176,7 +176,7 @@ export default function ExtendProgramPage() {
 
         <div className="card p-4 mt-4 grid grid-cols-3 gap-4 text-sm">
           <div>
-            <p className="text-xs text-gray-500">قيمة التمديد على المريض</p>
+            <p className="text-xs text-gray-500">قيمة التمديد على الحالة</p>
             <p className="font-bold text-gray-800 mt-0.5">{money(added.value)}</p>
           </div>
           <div>
@@ -189,7 +189,7 @@ export default function ExtendProgramPage() {
           </div>
         </div>
         <p className="text-xs text-gray-400 mt-2">
-          تُضاف قيمة التمديد إلى فاتورة البرنامج وحساب المريض، وعمولته إلى حساب الأخصائي، كقيد تعديل واحد لكل منهما.
+          تُضاف قيمة التمديد إلى فاتورة البرنامج وحساب الحالة، وعمولته إلى حساب الأخصائي، كقيد تعديل واحد لكل منهما.
         </p>
 
         {error && <p className="text-sm text-red-600 mt-3 bg-red-50 px-4 py-2 rounded-lg">{error}</p>}

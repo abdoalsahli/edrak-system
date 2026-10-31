@@ -85,8 +85,8 @@ export default function ReceiptsPage() {
   return (
     <div>
       <PageHeader
-        title="السندات والتسويات"
-        description="كل المبالغ المستلمة من المرضى"
+        title="الحركات المالية"
+        description="كل المبالغ المستلمة من الحالات"
         action={
           <div className="flex gap-2">
             <button onClick={() => window.print()} className="btn-secondary text-sm"><Printer className="size-4" />طباعة</button>
@@ -116,7 +116,7 @@ export default function ReceiptsPage() {
       <div className="card p-4 mb-4">
         <div className="grid grid-cols-5 gap-3">
           <div>
-            <label className="label text-xs">المريض</label>
+            <label className="label text-xs">الحالة</label>
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="بحث بالاسم..." className="input text-sm" />
           </div>
           <div>

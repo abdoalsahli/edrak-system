@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ok, badRequest, requireAuth, paginate } from "@/lib/api";
 import { z } from "zod";
+import { setOpeningBalance } from "@/lib/ledger/LedgerService";
 
 const createSchema = z.object({
-  fullName: z.string().trim().min(2, "اسم المريض مطلوب (حرفان على الأقل)"),
+  fullName: z.string().trim().min(2, "اسم الحالة مطلوب (حرفان على الأقل)"),
   dob: z.string().optional().nullable(),
   gender: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
@@ -17,6 +18,11 @@ const createSchema = z.object({
     phone: z.string().optional().nullable(),
     nationalId: z.string().optional().nullable(),
   }).optional().nullable(),
+  // الرصيد الافتتاحي — in the account's direction; managers and accountants only
+  openingBalance: z.object({
+    amount: z.number(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+  }).nullish(),
 });
 
 export async function GET(req: Request) {
@@ -61,15 +67,25 @@ export async function POST(req: Request) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return badRequest(parsed.error.errors[0].message);
 
-  const { guardian, ...data } = parsed.data;
+  const { guardian, openingBalance, ...data } = parsed.data;
+  const withOpening = openingBalance && Math.abs(openingBalance.amount) >= 0.005;
+  if (withOpening && auth.role !== "MANAGER") {
+    return badRequest("الرصيد الافتتاحي يدخله المدير أو المحاسب");
+  }
 
-  const patient = await prisma.patient.create({
-    data: {
-      ...data,
-      dob: data.dob ? new Date(data.dob) : null,
-      ...(guardian ? { guardian: { create: guardian } } : {}),
-    },
-    include: { guardian: true },
+  const patient = await prisma.$transaction(async (tx) => {
+    const p = await tx.patient.create({
+      data: {
+        ...data,
+        dob: data.dob ? new Date(data.dob) : null,
+        ...(guardian ? { guardian: { create: guardian } } : {}),
+      },
+      include: { guardian: true },
+    });
+    if (withOpening) {
+      await setOpeningBalance(tx, { patientId: p.id }, openingBalance.amount, openingBalance.date ? new Date(openingBalance.date) : null);
+    }
+    return p;
   });
 
   return ok(patient, 201);

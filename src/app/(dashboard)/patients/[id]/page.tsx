@@ -10,12 +10,13 @@ import { FileText, CalendarPlus, User, Phone, IdCard, MapPin, Cake } from "lucid
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { to12 } from "@/lib/time12";
+import { OpeningBalanceCard } from "@/components/finance/OpeningBalance";
 
 const SESSION_STATUS_LABELS: Record<string, { label: string; variant: "default" | "success" | "warning" | "danger" | "gray" | "info" }> = {
   PENDING: { label: "مجدولة", variant: "default" },
   COMPLETED: { label: "مكتملة", variant: "success" },
   ABSENT: { label: "غياب", variant: "danger" },
-  CANCELLED_BY_PATIENT: { label: "ألغاها المريض", variant: "warning" },
+  CANCELLED_BY_PATIENT: { label: "ألغتها الحالة", variant: "warning" },
   CANCELLED_BY_CENTER: { label: "ألغاها المركز", variant: "gray" },
 };
 
@@ -88,7 +89,7 @@ export default async function PatientProfilePage({
     <div>
       <PageHeader
         title={patient.fullName}
-        description="ملف المريض"
+        description="ملف الحالة"
         action={
           <>
             {/* The statement is financial data — accountants and managers only */}
@@ -111,7 +112,7 @@ export default async function PatientProfilePage({
               <p className="mt-3 text-lg font-semibold text-gray-800">{patient.fullName}</p>
               <div className="mt-2 flex flex-wrap justify-center gap-2">
                 <Badge variant="info">{typeLabel}{age != null ? ` · ${age} سنوات` : ""}</Badge>
-                {!patient.isActive && <Badge variant="gray">غير نشط</Badge>}
+                {!patient.isActive && <Badge variant="gray">غير نشطة</Badge>}
               </div>
             </div>
 
@@ -149,7 +150,7 @@ export default async function PatientProfilePage({
             </dl>
 
             <div className="mt-6 rounded-2xl bg-gradient-primary p-5 text-white">
-              <p className="text-sm opacity-80">{totalOutstanding < 0 ? "رصيد لصالح المريض" : "الرصيد المستحق"}</p>
+              <p className="text-sm opacity-80">{totalOutstanding < 0 ? "رصيد لصالح الحالة" : "الرصيد المستحق"}</p>
               <p className="mt-1 text-3xl font-bold">{Math.abs(totalOutstanding).toLocaleString("en-US", { maximumFractionDigits: 2 })} د.ل</p>
               {canSeeMoney && (
                 <Link href={`/patients/${patient.id}/statement`} className="mt-2 inline-block text-xs underline opacity-80 hover:opacity-100">
@@ -158,6 +159,8 @@ export default async function PatientProfilePage({
               )}
             </div>
           </div>
+
+          {canSeeMoney && <OpeningBalanceCard patientId={patient.id} />}
         </div>
 
         {/* Programmes and sessions */}

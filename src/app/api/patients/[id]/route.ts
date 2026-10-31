@@ -49,7 +49,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     },
   });
 
-  if (!patient) return notFound("المريض غير موجود");
+  if (!patient) return notFound("الحالة غير موجودة");
   return ok(patient);
 }
 
@@ -64,7 +64,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const { guardian, ...data } = parsed.data;
 
   const existing = await prisma.patient.findUnique({ where: { id: params.id }, include: { guardian: true } });
-  if (!existing) return notFound("المريض غير موجود");
+  if (!existing) return notFound("الحالة غير موجودة");
 
   const patient = await prisma.patient.update({
     where: { id: params.id },

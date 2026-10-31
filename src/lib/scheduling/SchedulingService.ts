@@ -109,7 +109,7 @@ export async function validateAvailability(
     select: { startTime: true, endTime: true },
   });
   if (patientDay.some((a) => timesOverlap(startTime, endTime, a.startTime, a.endTime))) {
-    return { ok: false, reason: "المريض لديه موعد آخر في هذا الوقت" };
+    return { ok: false, reason: "الحالة لديها موعد آخر في هذا الوقت" };
   }
 
   return { ok: true };

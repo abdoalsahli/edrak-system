@@ -92,7 +92,7 @@ export default function InvoiceDetailPage() {
           <div className="flex gap-2">
             {data.status === "DRAFT" && <button onClick={issue} className="btn-primary text-sm">إصدار</button>}
             {/* Receipts and refunds are posted to the patient's current account, not to an invoice */}
-            <Link href={`/finance/accounts/patient:${data.patient.id}`} className="btn-primary text-sm">حساب المريض</Link>
+            <Link href={`/finance/accounts/patient:${data.patient.id}`} className="btn-primary text-sm">حساب الحالة</Link>
             {data.programId && data.status !== "VOID" && (
               <button onClick={recalc} className="btn-secondary text-sm" title="إعادة حساب الإجمالي من البرنامج">
                 ↻ إعادة حساب
@@ -108,7 +108,7 @@ export default function InvoiceDetailPage() {
       {/* Header card */}
       <div className="card p-5 mb-4 grid grid-cols-2 gap-4 text-sm">
         <div><span className="text-gray-500">الحالة:</span> <Badge variant={st.variant}>{st.label}</Badge></div>
-        <div><span className="text-gray-500">المريض:</span> <Link href={`/patients/${data.patient.id}`} className="text-primary-600 hover:underline">{data.patient.fullName}</Link></div>
+        <div><span className="text-gray-500">الحالة:</span> <Link href={`/patients/${data.patient.id}`} className="text-primary-600 hover:underline">{data.patient.fullName}</Link></div>
         <div><span className="text-gray-500">تاريخ الإصدار:</span> {data.issueDate ? format(new Date(data.issueDate), "d MMM yyyy", { locale: arSA }) : "—"}</div>
         <div><span className="text-gray-500">تاريخ الاستحقاق:</span> {data.dueDate ? format(new Date(data.dueDate), "d MMM yyyy", { locale: arSA }) : "—"}</div>
       </div>
@@ -155,9 +155,9 @@ export default function InvoiceDetailPage() {
           </div>
         )}
         <div className="px-5 py-3 text-xs text-gray-500 bg-gray-50">
-          تُقيَّد هذه الفاتورة مديناً على حساب المريض، والتحصيل يُسجَّل بسندات قبض على الحساب نفسه.{" "}
+          تُقيَّد هذه الفاتورة مديناً على حساب الحالة، والتحصيل يُسجَّل بسندات قبض على الحساب نفسه.{" "}
           <Link href={`/finance/accounts/patient:${data.patient.id}`} className="text-primary-600 hover:underline">
-            عرض رصيد المريض ←
+            عرض رصيد الحالة ←
           </Link>
         </div>
       </div>

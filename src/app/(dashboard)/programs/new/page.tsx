@@ -233,7 +233,7 @@ export default function NewProgramPage() {
                 </div>
                 <span className={remainingAfterPay > 0 ? "text-amber-700 font-medium" : "text-green-700 font-medium"}>
                   {remainingAfterPay > 0
-                    ? `الرصيد المستحق على المريض: ${remainingAfterPay.toFixed(2)} د.ل`
+                    ? `الرصيد المستحق على الحالة: ${remainingAfterPay.toFixed(2)} د.ل`
                     : "✓ مسدّد بالكامل"}
                 </span>
               </div>
@@ -264,13 +264,13 @@ export default function NewProgramPage() {
       <form onSubmit={generatePreview} className="card p-6 space-y-4">
         <div>
           <div className="flex items-center justify-between">
-            <label className="label">المريض <span className="text-red-500">*</span></label>
+            <label className="label">الحالة <span className="text-red-500">*</span></label>
             <button type="button" onClick={() => setAddingPatient(true)} className="text-xs text-primary-600 hover:underline mb-1">
-              + مريض جديد
+              + حالة جديدة
             </button>
           </div>
           <select required value={patientId} onChange={(e) => setPatientId(e.target.value)} className="input">
-            <option value="">— اختر مريضاً —</option>
+            <option value="">— اختر حالة —</option>
             {patients.map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}
           </select>
         </div>

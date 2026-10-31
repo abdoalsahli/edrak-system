@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { readApiError } from "@/lib/apiError";
+import { OpeningBalanceSection, emptyOpening, toOpeningPayload, type OpeningValue } from "@/components/finance/OpeningBalance";
 
 export default function NewTherapistPage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function NewTherapistPage() {
   const [commissionType,  setCommissionType]  = useState<"" | "PERCENTAGE" | "FIXED">("");
   const [commissionRate,  setCommissionRate]  = useState("");
   const [commissionFixed, setCommissionFixed] = useState("");
+  const [opening, setOpening] = useState<OpeningValue>(emptyOpening());
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -30,6 +32,7 @@ export default function NewTherapistPage() {
         commissionType:  commissionType  || null,
         commissionRate:  commissionType === "PERCENTAGE" && commissionRate  ? parseFloat(commissionRate)  : null,
         commissionFixed: commissionType === "FIXED"      && commissionFixed ? parseFloat(commissionFixed) : null,
+        openingBalance: toOpeningPayload(opening),
       }),
     });
 
@@ -92,6 +95,8 @@ export default function NewTherapistPage() {
             )}
           </div>
         </div>
+
+        <OpeningBalanceSection who="therapist" value={opening} onChange={setOpening} />
 
         {error && <p className="text-sm text-red-600 bg-red-50 px-4 py-2 rounded-lg">{error}</p>}
         <div className="flex gap-3">

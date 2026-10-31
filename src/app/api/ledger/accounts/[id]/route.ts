@@ -65,7 +65,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   // A patient / therapist account is named after its party — rename the party instead
   if (parsed.data.name && (account.patientId || account.therapistId)) {
-    return badRequest({ message: "اسم حساب المريض أو الأخصائي يتبع اسمه في ملفه" });
+    return badRequest({ message: "اسم حساب الحالة أو الأخصائي يتبع الاسم في الملف" });
   }
   // The nature of an account is fixed: changing it would flip the sign of its history
 

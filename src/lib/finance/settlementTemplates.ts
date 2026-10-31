@@ -28,21 +28,21 @@ const OTHER_SIDE: AccountKind[] = ["EXPENSE", "CUSTOM"];
 
 export const SETTLEMENT_TEMPLATES: SettlementTemplate[] = [
   {
-    key: "patient_discount", label: "خصم لمريض", type: "DISCOUNT",
-    hint: "ينقص المستحق على المريض بقيمة الخصم.",
-    main: { label: "المريض", kinds: ["PATIENT"], side: "from" },
+    key: "patient_discount", label: "خصم لحالة", type: "DISCOUNT",
+    hint: "ينقص المستحق على الحالة بقيمة الخصم.",
+    main: { label: "الحالة", kinds: ["PATIENT"], side: "from" },
     counter: { label: "حساب الخصومات", kinds: OTHER_SIDE, required: false },
   },
   {
-    key: "patient_write_off", label: "إعدام دين مريض", type: "WRITE_OFF",
-    hint: "يُسقط مبلغاً لن يُحصَّل من المستحق على المريض.",
-    main: { label: "المريض", kinds: ["PATIENT"], side: "from" },
+    key: "patient_write_off", label: "إعدام دين حالة", type: "WRITE_OFF",
+    hint: "يُسقط مبلغاً لن يُحصَّل من المستحق على الحالة.",
+    main: { label: "الحالة", kinds: ["PATIENT"], side: "from" },
     counter: { label: "حساب الديون المعدومة", kinds: OTHER_SIDE, required: false },
   },
   {
-    key: "patient_charge", label: "رسوم إضافية على مريض", type: "OTHER",
-    hint: "يزيد المستحق على المريض (رسوم أو قيمة لم تُقيَّد).",
-    main: { label: "المريض", kinds: ["PATIENT"], side: "to" },
+    key: "patient_charge", label: "رسوم إضافية على حالة", type: "OTHER",
+    hint: "يزيد المستحق على الحالة (رسوم أو قيمة لم تُقيَّد).",
+    main: { label: "الحالة", kinds: ["PATIENT"], side: "to" },
     counter: { label: "حساب الإيراد", kinds: OTHER_SIDE, required: false },
   },
   {

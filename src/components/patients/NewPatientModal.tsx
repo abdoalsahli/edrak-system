@@ -46,13 +46,13 @@ export function NewPatientModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="مريض جديد" size="lg">
+    <Modal open={open} onClose={onClose} title="حالة جديدة" size="lg">
       <form onSubmit={submit} className="space-y-4">
         <PatientFields form={form} onChange={setForm} />
         {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
         <div className="flex gap-3 pt-1">
           <button type="submit" disabled={saving} className="btn-primary">
-            {saving ? "جارٍ الحفظ..." : "حفظ واختيار المريض"}
+            {saving ? "جارٍ الحفظ..." : "حفظ واختيار الحالة"}
           </button>
           <button type="button" onClick={onClose} className="btn-secondary">إلغاء</button>
         </div>

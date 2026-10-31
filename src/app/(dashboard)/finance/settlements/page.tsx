@@ -70,7 +70,7 @@ export default function SettlementsPage() {
   return (
     <div>
       <PageHeader
-        title="السندات والتسويات"
+        title="الحركات المالية"
         description="قيود بلا حركة نقدية مع الأطراف: خصم، إعدام دين، تصحيح، تحويل بين حسابين أو صندوقين"
         action={<button onClick={() => setCreating(true)} className="btn-primary text-sm">+ تسوية</button>}
       />

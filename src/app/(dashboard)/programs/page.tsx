@@ -66,7 +66,7 @@ export default async function ProgramsPage({ searchParams }: { searchParams: { p
 
       <div className="mb-5 flex gap-2">
         <form method="get" className="flex flex-1 flex-wrap gap-2">
-          <input name="q" defaultValue={q} placeholder="بحث باسم المريض..." className="input max-w-xs !rounded-full" />
+          <input name="q" defaultValue={q} placeholder="بحث باسم الحالة..." className="input max-w-xs !rounded-full" />
           <select name="status" defaultValue={statusFilter} className="input max-w-[160px] !rounded-full">
             <option value="">جميع الحالات</option>
             <option value="ACTIVE">نشط</option>

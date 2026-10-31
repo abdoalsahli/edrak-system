@@ -18,7 +18,7 @@ const STATUS_MAP: Record<string, { label: string; variant: "success" | "danger" 
   PENDING:              { label: "مجدولة",       variant: "default" },
   COMPLETED:            { label: "مكتملة",       variant: "success" },
   ABSENT:               { label: "غياب",          variant: "danger"  },
-  CANCELLED_BY_PATIENT: { label: "ألغى المريض",  variant: "gray"    },
+  CANCELLED_BY_PATIENT: { label: "ألغت الحالة",  variant: "gray"    },
   CANCELLED_BY_CENTER:  { label: "ألغى المركز",  variant: "gray"    },
 };
 
@@ -127,7 +127,7 @@ export default function SessionDetailPage() {
   async function toggleCharge() {
     if (!data) return;
     const next = !data.isCharged;
-    if (!confirm(next ? "احتساب قيمة هذه الجلسة على المريض؟" : "إلغاء احتساب قيمة هذه الجلسة؟")) return;
+    if (!confirm(next ? "احتساب قيمة هذه الجلسة على الحالة؟" : "إلغاء احتساب قيمة هذه الجلسة؟")) return;
     const res = await fetch(`/api/sessions/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -204,7 +204,7 @@ export default function SessionDetailPage() {
             {["ABSENT", "CANCELLED_BY_PATIENT", "CANCELLED_BY_CENTER"].includes(data.status) && (
               <span className="ms-2 inline-flex items-center gap-2">
                 <span className={`text-xs px-2 py-0.5 rounded-full ${data.isCharged ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-600"}`}>
-                  {data.isCharged ? "محتسبة على المريض" : "غير محتسبة"}
+                  {data.isCharged ? "محتسبة على الحالة" : "غير محتسبة"}
                 </span>
                 <button type="button" onClick={toggleCharge} className="text-xs text-primary-600 hover:underline">
                   {data.isCharged ? "إلغاء الاحتساب" : "احتساب القيمة"}
@@ -212,7 +212,7 @@ export default function SessionDetailPage() {
               </span>
             )}
           </div>
-          <div><span className="text-gray-500">المريض:</span> <Link href={`/patients/${data.patient.id}`} className="text-primary-600 hover:underline">{data.patient.fullName}</Link></div>
+          <div><span className="text-gray-500">الحالة:</span> <Link href={`/patients/${data.patient.id}`} className="text-primary-600 hover:underline">{data.patient.fullName}</Link></div>
           <div><span className="text-gray-500">تاريخ الإنشاء:</span> {format(parseISO(data.createdAt), "d MMM yyyy", { locale: arSA })}</div>
           {data.deliveredAt && (
             <div><span className="text-gray-500">تاريخ التسليم:</span> {format(parseISO(data.deliveredAt), "d MMM yyyy", { locale: arSA })}</div>
@@ -257,11 +257,11 @@ export default function SessionDetailPage() {
         <PatientAccountCard
           patientId={data.patient.id}
           charged={charged}
-          chargedLabel={data.program ? "قيمة هذه الجلسة (ضمن البرنامج)" : "قيمة الجلسة على حساب المريض"}
+          chargedLabel={data.program ? "قيمة هذه الجلسة (ضمن البرنامج)" : "قيمة الجلسة على حساب الحالة"}
           chargedHint={
             data.program
               ? "مقيّدة على الحساب ضمن قيمة البرنامج"
-              : charged === 0 ? "غير محتسبة على المريض" : undefined
+              : charged === 0 ? "غير محتسبة على الحالة" : undefined
           }
         />
       </div>
@@ -305,7 +305,7 @@ export default function SessionDetailPage() {
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
               <p className="font-semibold text-amber-900">هل تريد احتساب قيمة الجلسة؟</p>
               <p className="text-sm text-amber-800 mt-1">
-                {({ ABSENT: "غياب", CANCELLED_BY_PATIENT: "إلغاء من المريض", CANCELLED_BY_CENTER: "إلغاء من المركز" } as Record<string, string>)[outcomeStatus]}
+                {({ ABSENT: "غياب", CANCELLED_BY_PATIENT: "إلغاء من الحالة", CANCELLED_BY_CENTER: "إلغاء من المركز" } as Record<string, string>)[outcomeStatus]}
                 {" — "}قيمة الجلسة{" "}
                 <strong dir="ltr">{Number(data.price ?? 0).toFixed(2)} د.ل</strong>
               </p>
@@ -329,7 +329,7 @@ export default function SessionDetailPage() {
             <select value={outcomeStatus} onChange={(e) => setOutcomeStatus(e.target.value)} className="input">
               <option value="COMPLETED">مكتملة</option>
               <option value="ABSENT">غياب (بدون إشعار)</option>
-              <option value="CANCELLED_BY_PATIENT">ألغى المريض (مع إشعار)</option>
+              <option value="CANCELLED_BY_PATIENT">ألغت الحالة (مع إشعار)</option>
               <option value="CANCELLED_BY_CENTER">ألغى المركز</option>
             </select>
           </div>

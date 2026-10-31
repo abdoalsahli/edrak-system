@@ -21,7 +21,7 @@ const OutcomeSchema = z
 const CHARGED_LINE_LABEL: Record<string, string> = {
   COMPLETED: "جلسة مكتملة",
   ABSENT: "غياب — محتسبة",
-  CANCELLED_BY_PATIENT: "إلغاء من المريض — محتسبة",
+  CANCELLED_BY_PATIENT: "إلغاء من الحالة — محتسبة",
   CANCELLED_BY_CENTER: "إلغاء من المركز — محتسبة",
 };
 
@@ -58,7 +58,7 @@ const CHARGEABLE_STATUSES = ["ABSENT", "CANCELLED_BY_PATIENT", "CANCELLED_BY_CEN
 const OUTCOME_EVENT: Record<string, string> = {
   COMPLETED: "إكمال",
   ABSENT: "غياب",
-  CANCELLED_BY_PATIENT: "إلغاء المريض",
+  CANCELLED_BY_PATIENT: "إلغاء من الحالة",
   CANCELLED_BY_CENTER: "إلغاء المركز",
 };
 const sessionEvent = (event: string, seq: number | null) => `${event} الجلسة${seq != null ? ` #${seq}` : ""} من برنامج`;

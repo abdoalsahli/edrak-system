@@ -62,9 +62,9 @@ export default function NewInvoicePage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="card p-5">
           <div className="mb-4">
-            <label className="label">المريض <span className="text-red-500">*</span></label>
+            <label className="label">الحالة <span className="text-red-500">*</span></label>
             <select required value={patientId} onChange={(e) => setPatientId(e.target.value)} className="input">
-              <option value="">— اختر مريضاً —</option>
+              <option value="">— اختر حالة —</option>
               {patients.map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}
             </select>
           </div>

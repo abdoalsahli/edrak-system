@@ -13,7 +13,7 @@ const money = (n: number) =>
   n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const SECTIONS: { kind: AccountKind; title: string; positive: string; negative: string }[] = [
-  { kind: "PATIENT", title: "حسابات المرضى", positive: "عليه", negative: "له" },
+  { kind: "PATIENT", title: "حسابات الحالات", positive: "عليها", negative: "لها" },
   { kind: "THERAPIST", title: "حسابات الأخصائيين", positive: "له", negative: "عليه (سُلفة)" },
   { kind: "EXPENSE", title: "حسابات المصروفات", positive: "مصروف", negative: "مسترد" },
   { kind: "CUSTOM", title: "حسابات عامة", positive: "", negative: "" },
@@ -32,10 +32,10 @@ export async function BalancesReport({ asOf, asOfIso }: { asOf: Date; asOfIso: s
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="card p-4">
-          <p className="text-xs text-gray-500">مستحق على المرضى</p>
+          <p className="text-xs text-gray-500">مستحق على الحالات</p>
           <p className="text-xl font-bold text-red-600 mt-1" dir="ltr">{money(totals.receivable)} د.ل</p>
           {totals.patientCredit > 0 && (
-            <p className="text-xs text-amber-700 mt-1">أرصدة دائنة للمرضى: {money(totals.patientCredit)}</p>
+            <p className="text-xs text-amber-700 mt-1">أرصدة دائنة للحالات: {money(totals.patientCredit)}</p>
           )}
         </div>
         <div className="card p-4">

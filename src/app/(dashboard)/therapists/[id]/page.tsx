@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { TherapistLoginCard } from "@/components/therapists/TherapistLoginCard";
+import { OpeningBalanceCard } from "@/components/finance/OpeningBalance";
 import { Badge } from "@/components/ui/Badge";
 import { Wallet } from "lucide-react";
 
@@ -81,6 +82,7 @@ export default function TherapistDetailPage() {
       />
 
       <TherapistLoginCard therapistId={id} />
+      <div className="mb-6"><OpeningBalanceCard therapistId={id} /></div>
 
       <form onSubmit={handleSave} className="space-y-6">
         <div className="card p-5">

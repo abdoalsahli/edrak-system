@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getBalances, naturalBalance } from "@/lib/ledger/LedgerService";
 
 /**
- * رصيد الحساب الجاري للمريض — one figure for everything the patient was
+ * رصيد الحساب الجاري للحالة — one figure for everything the patient was
  * charged and paid (programs, sessions, receipts). Payments are not tied to an invoice.
  * Financial data: managers and accountants only.
  */

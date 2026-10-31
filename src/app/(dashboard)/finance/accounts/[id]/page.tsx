@@ -45,7 +45,7 @@ const SOURCE_BADGE: Record<Source, { label: string; variant: "info" | "success" 
 };
 
 const KIND_AR: Record<Kind, string> = {
-  PATIENT: "حساب مريض", THERAPIST: "حساب أخصائي", EXPENSE: "حساب مصروف", CUSTOM: "حساب عام", CASH: "صندوق / بنك",
+  PATIENT: "حساب حالة", THERAPIST: "حساب أخصائي", EXPENSE: "حساب مصروف", CUSTOM: "حساب عام", CASH: "صندوق / بنك",
 };
 
 const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
@@ -62,8 +62,8 @@ function balanceMeaning(kind: Kind, nature: Nature, balance: number): { text: st
     : { text: "رصيد سالب — راجع الصندوق", tone: "bg-red-50 border-red-200 text-red-700" };
   if (kind === "EXPENSE") return { text: balance > 0 ? "إجمالي المصروف" : "مبالغ مستردة", tone: "bg-amber-50 border-amber-200 text-amber-800" };
   if (kind === "PATIENT") return debitSide
-    ? { text: "مستحق على المريض (مدين)", tone: "bg-red-50 border-red-200 text-red-700" }
-    : { text: "رصيد للمريض (دائن)", tone: "bg-amber-50 border-amber-200 text-amber-800" };
+    ? { text: "مستحق على الحالة (مدين)", tone: "bg-red-50 border-red-200 text-red-700" }
+    : { text: "رصيد للحالة (دائن)", tone: "bg-amber-50 border-amber-200 text-amber-800" };
   if (kind === "THERAPIST") return debitSide
     ? { text: "سُلفة على الأخصائي (مدين)", tone: "bg-blue-50 border-blue-200 text-blue-700" }
     : { text: "مستحق للأخصائي (دائن)", tone: "bg-amber-50 border-amber-200 text-amber-800" };

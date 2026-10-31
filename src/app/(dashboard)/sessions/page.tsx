@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { DEFAULT_SESSION_MINUTES, DEFAULT_SESSION_PRICE, sessionDefaults } from "@/lib/sessionDefaults";
 import { to12, range12, hour12 } from "@/lib/time12";
+import { WEEK_STARTS_ON, WEEK_ORDER } from "@/lib/week";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -174,13 +175,13 @@ function CreateSessionModal({
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
 <div className="flex items-center justify-between">
-              <label className="label">المريض <span className="text-red-500">*</span></label>
+              <label className="label">الحالة <span className="text-red-500">*</span></label>
               <button type="button" onClick={() => setAddingPatient(true)} className="text-xs text-primary-600 hover:underline mb-1">
-                + مريض جديد
+                + حالة جديدة
               </button>
             </div>
             <select required value={patientId} onChange={e => setPatientId(e.target.value)} className="input">
-              <option value="">— اختر مريضاً —</option>
+              <option value="">— اختر حالة —</option>
               {patients.map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
             </select>
           </div>
@@ -292,7 +293,7 @@ function CreateSessionModal({
                 </button>
                 <span className={remainingAfterPay > 0 ? "text-amber-700" : "text-green-700"}>
                   {remainingAfterPay > 0
-                    ? `المتبقي على المريض: ${remainingAfterPay.toFixed(2)} د.ل`
+                    ? `المتبقي على الحالة: ${remainingAfterPay.toFixed(2)} د.ل`
                     : "✓ مسدّدة بالكامل"}
                 </span>
               </div>
@@ -490,8 +491,8 @@ function MonthGrid({
   onDayClick: (date: string) => void;
   onDayOpen: (day: Date) => void;
 }) {
-  const start = startOfWeek(startOfMonth(current), { weekStartsOn: 0 });
-  const end = endOfWeek(endOfMonth(current), { weekStartsOn: 0 });
+  const start = startOfWeek(startOfMonth(current), { weekStartsOn: WEEK_STARTS_ON });
+  const end = endOfWeek(endOfMonth(current), { weekStartsOn: WEEK_STARTS_ON });
   const days: Date[] = [];
   for (let d = start; d <= end; d = addDays(d, 1)) days.push(d);
   const weeks = days.length / 7;
@@ -504,7 +505,7 @@ function MonthGrid({
   return (
     <div className="card flex flex-1 flex-col overflow-hidden">
       <div className="grid grid-cols-7 border-b border-gray-300/70 bg-white">
-        {DAY_NAMES_SHORT.map((name) => (
+        {WEEK_ORDER.map((d) => DAY_NAMES_SHORT[d]).map((name) => (
           <div key={name} className="py-2.5 text-center text-xs font-medium text-gray-500">{name}</div>
         ))}
       </div>
@@ -601,12 +602,12 @@ export default function SessionsCalendarPage() {
   const range = useCallback(() => {
     if (view === "day") return { from: current, to: current };
     if (view === "week") return {
-      from: startOfWeek(current, { weekStartsOn: 0 }),
-      to:   endOfWeek(current,   { weekStartsOn: 0 }),
+      from: startOfWeek(current, { weekStartsOn: WEEK_STARTS_ON }),
+      to:   endOfWeek(current,   { weekStartsOn: WEEK_STARTS_ON }),
     };
     return {
-      from: startOfWeek(startOfMonth(current), { weekStartsOn: 0 }),
-      to:   endOfWeek(endOfMonth(current),     { weekStartsOn: 0 }),
+      from: startOfWeek(startOfMonth(current), { weekStartsOn: WEEK_STARTS_ON }),
+      to:   endOfWeek(endOfMonth(current),     { weekStartsOn: WEEK_STARTS_ON }),
     };
   }, [view, current]);
 
@@ -643,7 +644,7 @@ export default function SessionsCalendarPage() {
   const weekDays = view === "day"
     ? [current]
     : Array.from({ length: 7 }, (_, i) =>
-        addDays(startOfWeek(current, { weekStartsOn: 0 }), i)
+        addDays(startOfWeek(current, { weekStartsOn: WEEK_STARTS_ON }), i)
       );
 
   // Title

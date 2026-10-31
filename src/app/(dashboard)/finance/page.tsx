@@ -83,7 +83,7 @@ export default function FinanceDashboard() {
         <StatCard label="المقبوض هذا الشهر" value={`${money(t.monthIn)} د.ل`} icon={Wallet} tone="success" />
         <StatCard label="المصروف هذا الشهر" value={`${money(t.monthOut)} د.ل`} icon={ReceiptText} tone="danger" />
         <Link href="/finance/accounts?kind=PATIENT" className="block transition hover:-translate-y-0.5">
-          <StatCard label="المستحق على المرضى" value={`${money(t.receivable)} د.ل`} icon={HandCoins} tone="warning" />
+          <StatCard label="المستحق على الحالات" value={`${money(t.receivable)} د.ل`} icon={HandCoins} tone="warning" />
         </Link>
         <Link href="/finance/accounts?kind=THERAPIST" className="block transition hover:-translate-y-0.5">
           <StatCard label="المستحق للأخصائيين" value={`${money(t.payable)} د.ل`} icon={Stethoscope} tone="primary" />

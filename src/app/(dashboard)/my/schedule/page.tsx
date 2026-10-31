@@ -10,6 +10,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { AlertTriangle } from "lucide-react";
 import { to12, range12 } from "@/lib/time12";
+import { WEEK_STARTS_ON } from "@/lib/week";
 
 type Apt = {
   id: string;
@@ -33,16 +34,16 @@ const STATUS: Record<string, { label: string; variant: "default" | "success" | "
   PENDING: { label: "مجدولة", variant: "default" },
   COMPLETED: { label: "مكتملة", variant: "success" },
   ABSENT: { label: "غياب", variant: "danger" },
-  CANCELLED_BY_PATIENT: { label: "ألغى المريض", variant: "gray" },
+  CANCELLED_BY_PATIENT: { label: "ألغت الحالة", variant: "gray" },
   CANCELLED_BY_CENTER: { label: "ألغى المركز", variant: "gray" },
 };
-const NOT_HELD: Record<string, string> = { ABSENT: "غياب", CANCELLED_BY_PATIENT: "إلغاء من المريض", CANCELLED_BY_CENTER: "إلغاء من المركز" };
+const NOT_HELD: Record<string, string> = { ABSENT: "غياب", CANCELLED_BY_PATIENT: "إلغاء من الحالة", CANCELLED_BY_CENTER: "إلغاء من المركز" };
 
 const iso = (d: Date) => format(d, "yyyy-MM-dd");
 
 /** جدولي — the therapist's own sessions, week by week, with outcome recording. */
 export default function MySchedulePage() {
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 0 }));
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON }));
   const [apts, setApts] = useState<Apt[]>([]);
   const [overdue, setOverdue] = useState<Apt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +57,7 @@ export default function MySchedulePage() {
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
 
-  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
+  const weekEnd = endOfWeek(weekStart, { weekStartsOn: WEEK_STARTS_ON });
   const today = new Date();
 
   const load = useCallback(async () => {
@@ -143,7 +144,7 @@ export default function MySchedulePage() {
       {/* Week navigation */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
-          <button onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 0 }))} className="btn-secondary text-sm px-3 py-1.5">هذا الأسبوع</button>
+          <button onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON }))} className="btn-secondary text-sm px-3 py-1.5">هذا الأسبوع</button>
           <button onClick={() => setWeekStart((w) => addWeeks(w, -1))} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600" title="الأسبوع السابق">›</button>
           <button onClick={() => setWeekStart((w) => addWeeks(w, 1))} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600" title="الأسبوع التالي">‹</button>
           <h2 className="text-base font-semibold text-gray-900">
@@ -187,7 +188,7 @@ export default function MySchedulePage() {
         {target && (askCharge ? (
           <div className="space-y-4">
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <p className="font-semibold text-amber-900">هل تُحتسب قيمة الجلسة على المريض؟</p>
+              <p className="font-semibold text-amber-900">هل تُحتسب قيمة الجلسة على الحالة؟</p>
               <p className="text-sm text-amber-800 mt-1">{NOT_HELD[outcome]} — {target.session.patient.fullName}</p>
             </div>
             {modalError && <p className="text-sm text-red-600">{modalError}</p>}
@@ -211,7 +212,7 @@ export default function MySchedulePage() {
               <select value={outcome} onChange={(e) => setOutcome(e.target.value)} className="input">
                 <option value="COMPLETED">مكتملة</option>
                 <option value="ABSENT">غياب (بدون إشعار)</option>
-                <option value="CANCELLED_BY_PATIENT">ألغى المريض (مع إشعار)</option>
+                <option value="CANCELLED_BY_PATIENT">ألغت الحالة (مع إشعار)</option>
                 <option value="CANCELLED_BY_CENTER">ألغى المركز</option>
               </select>
             </div>

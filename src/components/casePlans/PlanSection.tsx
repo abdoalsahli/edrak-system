@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { Copy, Plus, Trash2, Pencil, Send, Save } from "lucide-react";
 import { readApiError } from "@/lib/apiError";
-import { FOCUS_AREAS } from "@/lib/casePlans/options";
+import { FOCUS_AREAS, monthAr } from "@/lib/casePlans/options";
 import { ChoiceChecks, Field, Answer } from "./ChoiceFields";
 import { DocHeader, ReviewNote, ReviewBar } from "./ReviewBar";
 import type { CycleDetail, PlanDraft } from "./types";
@@ -36,7 +36,7 @@ export function PlanSection({ detail, url, onSaved }: { detail: CycleDetail; url
         }
       />
       {!plan ? (
-        <p className="py-6 text-center text-sm text-gray-400">لم تُكتب خطة لهذه الدورة.</p>
+        <p className="py-6 text-center text-sm text-gray-400">لم تُكتب خطة لهذا الشهر.</p>
       ) : (
         <>
           <ReviewNote doc={plan} />
@@ -107,15 +107,15 @@ function PlanForm({ detail, url, onDone, onCancel }: { detail: CycleDetail; url:
         <div className="mb-5 rounded-2xl border border-primary-100 bg-primary-50/50 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-gray-700">
-              يمكنك البدء من خطة الدورة {previous.cycleNumber} ثم تعديلها وإضافة أهداف جديدة.
+              يمكنك البدء من خطة {monthAr(previous.cycleNumber)} ثم تعديلها وإضافة أهداف جديدة.
             </p>
             <button type="button" onClick={() => copyPrevious(previous.plan)} className="btn-secondary text-sm">
-              <Copy className="size-4" />نسخ خطة الدورة {previous.cycleNumber}
+              <Copy className="size-4" />نسخ خطة {monthAr(previous.cycleNumber)}
             </button>
           </div>
           {previous.recommendations && (
             <div className="mt-3 border-t border-primary-100 pt-3">
-              <p className="text-xs font-medium text-primary-700">توصيات تقرير الدورة {previous.cycleNumber}</p>
+              <p className="text-xs font-medium text-primary-700">توصيات تقرير {monthAr(previous.cycleNumber)}</p>
               <p className="mt-1 whitespace-pre-line text-sm text-gray-700">{previous.recommendations}</p>
             </div>
           )}

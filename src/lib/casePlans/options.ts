@@ -52,6 +52,10 @@ export const DOC_STATUS: Record<DocStatus, { label: string; variant: "gray" | "i
   RETURNED: { label: "أُعيد للتعديل", variant: "danger" },
 };
 
+const ORDINALS = ["الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس", "السابع", "الثامن", "التاسع", "العاشر"];
+/** A cycle is shown to people as a month: 1 → «الشهر الأول», 12 → «الشهر 12». */
+export const monthAr = (n: number) => `الشهر ${ORDINALS[n - 1] ?? n}`;
+
 /** «جلسة واحدة»، «جلستان»، «5 جلسات»، «12 جلسة» */
 export const sessionsAr = (n: number) =>
   n === 1 ? "جلسة واحدة" : n === 2 ? "جلستان" : n >= 3 && n <= 10 ? `${n} جلسات` : `${n} جلسة`;

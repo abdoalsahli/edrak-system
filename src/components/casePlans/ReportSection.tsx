@@ -45,11 +45,11 @@ export function ReportSection({ detail, url, onSaved }: { detail: CycleDetail; u
   }
 
   const waitingNote = !plan
-    ? "يُكتب التقرير بعد كتابة خطة الدورة."
+    ? "يُكتب التقرير بعد كتابة خطة الشهر."
     : plan.status === "DRAFT"
     ? "يُكتب التقرير بعد إرسال الخطة للإدارة."
     : !cycle.ended
-    ? `يُرسل التقرير بعد آخر جلسة في الدورة — بقي ${sessionsAr(cycle.sessions.pending)} مجدولة.`
+    ? `يُرسل التقرير بعد آخر جلسة في الشهر — بقي ${sessionsAr(cycle.sessions.pending)} مجدولة.`
     : null;
 
   return (
@@ -67,7 +67,7 @@ export function ReportSection({ detail, url, onSaved }: { detail: CycleDetail; u
       />
       {!report ? (
         <p className="py-6 text-center text-sm text-gray-400">
-          {waitingNote ?? (cycle.reportExpected ? "انتهت الدورة — التقرير مطلوب الآن." : "لا يوجد تقرير لهذه الدورة.")}
+          {waitingNote ?? (cycle.reportExpected ? "انتهى الشهر — التقرير مطلوب الآن." : "لا يوجد تقرير لهذا الشهر.")}
           {waitingNote && plan && plan.status !== "DRAFT" && <><br />يمكنك البدء بمسودة الآن.</>}
         </p>
       ) : (
@@ -75,7 +75,7 @@ export function ReportSection({ detail, url, onSaved }: { detail: CycleDetail; u
           <ReviewNote doc={report} />
           <div className="grid gap-5 sm:grid-cols-2">
             <Answer label="تاريخ التقرير">{format(new Date(report.reportDate), "d MMMM yyyy", { locale: arSA })}</Answer>
-            <Answer label="الحضور في الدورة"><Attendance s={cycle.sessions} /></Answer>
+            <Answer label="الحضور في الشهر"><Attendance s={cycle.sessions} /></Answer>
             <div className="sm:col-span-2"><Answer label="التشخيص">{report.diagnosis}</Answer></div>
             <div className="sm:col-span-2">
               <Answer label="أهداف الشهر">
@@ -141,7 +141,7 @@ function ReportForm({ detail, url, onDone, onCancel }: { detail: CycleDetail; ur
         <Field label="تاريخ التقرير" required>
           <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className="input" />
         </Field>
-        <Field label="الحضور في الدورة" hint="محسوب من الجلسات">
+        <Field label="الحضور في الشهر" hint="محسوب من الجلسات">
           <div className="flex min-h-[2.75rem] items-center"><Attendance s={cycle.sessions} /></div>
         </Field>
         <div className="sm:col-span-2">
@@ -200,7 +200,7 @@ function ReportForm({ detail, url, onDone, onCancel }: { detail: CycleDetail; ur
           </Field>
         </div>
         <div className="sm:col-span-2">
-          <Field label="التوصيات للشهر الجديد" required hint="تظهر للأخصائي عند كتابة خطة الدورة التالية">
+          <Field label="التوصيات للشهر الجديد" required hint="تظهر للأخصائي عند كتابة خطة الشهر التالي">
             <textarea value={recommendations} onChange={(e) => setRecommendations(e.target.value)} rows={4} className="input" />
           </Field>
         </div>

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { readApiError } from "@/lib/apiError";
 import { to12 } from "@/lib/time12";
+import { monthAr } from "@/lib/casePlans/options";
 import { PlanSection } from "./PlanSection";
 import { ReportSection, Attendance } from "./ReportSection";
 import type { CycleDetail } from "./types";
@@ -42,7 +43,7 @@ export function CycleWorkspace({ programId, cycle, basePath, backHref }: {
 
   const load = useCallback(async () => {
     const res = await fetch(url);
-    if (!res.ok) { setError(await readApiError(res, "تعذّر تحميل الدورة")); return; }
+    if (!res.ok) { setError(await readApiError(res, "تعذّر تحميل الشهر")); return; }
     setDetail(await res.json());
     setVersion((v) => v + 1);
   }, [url]);
@@ -61,15 +62,15 @@ export function CycleWorkspace({ programId, cycle, basePath, backHref }: {
         <ArrowRight className="size-4" />رجوع
       </Link>
       <PageHeader
-        title={`${program.patient.fullName} — الدورة ${c.number}`}
+        title={`${program.patient.fullName} — ${monthAr(c.number)}`}
         description={`${program.service.name} · الأخصائي ${program.therapist.fullName}`}
         action={
           <div className="flex items-center gap-2 print:hidden">
             {c.number > 1 && (
-              <Link href={`${basePath}/${c.number - 1}`} className="btn-secondary px-3" title="الدورة السابقة"><ChevronRight className="size-4" /></Link>
+              <Link href={`${basePath}/${c.number - 1}`} className="btn-secondary px-3" title="الشهر السابق"><ChevronRight className="size-4" /></Link>
             )}
             {c.number < detail.cycleCount && (
-              <Link href={`${basePath}/${c.number + 1}`} className="btn-secondary px-3" title="الدورة التالية"><ChevronLeft className="size-4" /></Link>
+              <Link href={`${basePath}/${c.number + 1}`} className="btn-secondary px-3" title="الشهر التالي"><ChevronLeft className="size-4" /></Link>
             )}
             <button type="button" onClick={() => window.print()} className="btn-secondary text-sm"><Printer className="size-4" />طباعة</button>
           </div>
@@ -79,7 +80,7 @@ export function CycleWorkspace({ programId, cycle, basePath, backHref }: {
       {/* The cycle at a glance */}
       <div className="card mb-6 grid gap-4 p-5 text-sm sm:grid-cols-3 print:shadow-none">
         <div>
-          <p className="text-gray-500">جلسات الدورة</p>
+          <p className="text-gray-500">جلسات الشهر</p>
           <p className="mt-1 font-medium text-gray-800">من {c.fromSequence} إلى {c.toSequence}</p>
         </div>
         <div>
@@ -100,7 +101,7 @@ export function CycleWorkspace({ programId, cycle, basePath, backHref }: {
 
         {detail.sessions.length > 0 && (
           <details className="card p-6 print:hidden">
-            <summary className="cursor-pointer text-lg font-semibold text-gray-800">جلسات الدورة ({detail.sessions.length})</summary>
+            <summary className="cursor-pointer text-lg font-semibold text-gray-800">جلسات الشهر ({detail.sessions.length})</summary>
             <ul className="mt-4 divide-y divide-gray-200 text-sm">
               {detail.sessions.map((s) => {
                 const st = SESSION_STATUS[s.status] ?? { label: s.status, variant: "gray" as const };

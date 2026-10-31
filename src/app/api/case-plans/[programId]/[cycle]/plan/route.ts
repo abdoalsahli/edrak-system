@@ -23,7 +23,7 @@ export async function PUT(req: Request, { params }: { params: { programId: strin
   if (access instanceof NextResponse) return access;
   const n = Number(params.cycle);
   const data = await getCycle(params.programId, n);
-  if (!data) return notFound("الدورة غير موجودة");
+  if (!data) return notFound("الشهر غير موجود");
 
   const parsed = PlanSchema.safeParse(await req.json());
   if (!parsed.success) return badRequest(parsed.error.flatten().fieldErrors);
@@ -34,7 +34,7 @@ export async function PUT(req: Request, { params }: { params: { programId: strin
     where: { programId_cycleNumber: { programId: data.program.id, cycleNumber: n } },
     include: { report: { select: { id: true } } },
   });
-  if (existing?.report) return badRequest({ message: "بدأ تقرير المتابعة لهذه الدورة — لا يمكن تعديل خطتها" });
+  if (existing?.report) return badRequest({ message: "بدأ تقرير المتابعة لهذا الشهر — لا يمكن تعديل خطته" });
   if (existing?.status === "APPROVED") return badRequest({ message: "الخطة معتمدة — لا يمكن تعديلها" });
 
   if (d.submit) {

@@ -24,7 +24,7 @@ export default async function MyPlansPage() {
     <div className="max-w-5xl">
       <PageHeader
         title="خططي وتقاريري"
-        description="اكتب خطة علاجية في بداية كل دورة (12 جلسة)، وتقرير متابعة في نهايتها يُرفع للإدارة"
+        description="اكتب خطة علاجية في بداية كل شهر (12 جلسة)، وتقرير متابعة في نهايتها يُرفع للإدارة"
       />
       <TasksBoard mode="therapist" />
 

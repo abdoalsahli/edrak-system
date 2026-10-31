@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
-import { DOC_STATUS, sessionsAr } from "@/lib/casePlans/options";
+import { DOC_STATUS, sessionsAr, monthAr } from "@/lib/casePlans/options";
 import type { CycleSummary } from "./types";
 
 const day = (iso: string | null) => (iso ? format(new Date(iso), "d MMM", { locale: arSA }) : "");
@@ -67,7 +67,7 @@ function CycleRows({ cycles, basePath }: { cycles: CycleSummary[]; basePath: str
       {warn && (
         <div className="mb-4 flex items-start gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          الدورة {running.number} بدأت {running.plan ? "وخطتها لم تُعتمد بعد" : "بدون خطة علاجية"} — الجلسات تُعدّ بناءً على الخطة.
+          {monthAr(running.number)} بدأ {running.plan ? "وخطته لم تُعتمد بعد" : "بدون خطة علاجية"} — الجلسات تُعدّ بناءً على الخطة.
         </div>
       )}
       <ul className="divide-y divide-gray-300/70">
@@ -77,7 +77,7 @@ function CycleRows({ cycles, basePath }: { cycles: CycleSummary[]; basePath: str
           return (
             <li key={c.number}>
               <Link href={`${basePath}/${c.number}`} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3 hover:bg-gray-50/70">
-                <span className="w-20 font-medium text-gray-800">الدورة {c.number}</span>
+                <span className="w-28 font-medium text-gray-800">{monthAr(c.number)}</span>
                 <span className="w-44 text-xs text-gray-500">
                   جلسات {c.fromSequence}–{c.toSequence}
                   {c.firstDate && ` · ${day(c.firstDate)} – ${day(c.lastDate)}`}

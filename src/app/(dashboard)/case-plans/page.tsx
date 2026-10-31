@@ -13,7 +13,7 @@ export default async function CasePlansPage() {
     <div className="max-w-5xl">
       <PageHeader
         title="الخطط والتقارير"
-        description="خطة علاجية في بداية كل دورة (12 جلسة) وتقرير متابعة في نهايتها — تراجعها الإدارة"
+        description="خطة علاجية في بداية كل شهر (12 جلسة) وتقرير متابعة في نهايتها — تراجعها الإدارة"
       />
       <TasksBoard mode="manager" />
     </div>

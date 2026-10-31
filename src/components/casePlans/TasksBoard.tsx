@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { ClipboardCheck, FileClock, Inbox } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { monthAr } from "@/lib/casePlans/options";
 import type { CaseTask, ReviewItem } from "@/lib/casePlans/CycleService";
 
 const TASK: Record<CaseTask["kind"], string> = {
@@ -51,7 +52,7 @@ export function TasksBoard({ mode }: { mode: "therapist" | "manager" }) {
                   <Link href={href(r.programId, r.cycle)} className="flex flex-wrap items-center gap-3 py-3 hover:bg-gray-50/70">
                     <Badge variant={r.doc === "plan" ? "default" : "info"}>{r.doc === "plan" ? "خطة علاجية" : "تقرير متابعة"}</Badge>
                     <span className="font-medium text-gray-800">{r.patientName}</span>
-                    <span className="text-xs text-gray-500">الدورة {r.cycle} · {r.therapistName}</span>
+                    <span className="text-xs text-gray-500">{monthAr(r.cycle)} · {r.therapistName}</span>
                     {r.submittedAt && <span className="text-xs text-gray-400">أُرسل {day(r.submittedAt)}</span>}
                     <span className="ms-auto text-xs font-medium text-primary-600">مراجعة</span>
                   </Link>
@@ -77,7 +78,7 @@ export function TasksBoard({ mode }: { mode: "therapist" | "manager" }) {
                 <Link href={href(t.programId, t.cycle)} className="flex flex-wrap items-center gap-3 py-3 hover:bg-gray-50/70">
                   <span className="font-medium text-gray-800">{t.patientName}</span>
                   <span className="text-xs text-gray-500">
-                    {t.serviceName} · الدورة {t.cycle}
+                    {t.serviceName} · {monthAr(t.cycle)}
                     {mode === "manager" && ` · ${t.therapistName}`}
                     {t.firstDate && ` · ${day(t.firstDate)} – ${day(t.lastDate)}`}
                   </span>

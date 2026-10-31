@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { cycleSize, type DocStatus } from "./options";
 
 /**
- * Cycles («دورات») of a program. Sessions are split by their sequence number
+ * Cycles of a program, shown to people as months («الشهر الأول»). Sessions are split by their sequence number
  * into blocks of sessionsPerWeek × 4. A plan fixes the range of its cycle when
  * it is written; cycles without a plan follow on with the program's rhythm.
  *

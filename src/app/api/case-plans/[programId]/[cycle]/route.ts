@@ -19,7 +19,7 @@ export async function GET(_req: Request, { params }: { params: { programId: stri
   if (access instanceof NextResponse) return access;
   const n = Number(params.cycle);
   const data = await getCycle(params.programId, n);
-  if (!data) return notFound("الدورة غير موجودة");
+  if (!data) return notFound("الشهر غير موجود");
   const { program, cycle } = data;
 
   const [plan, previous, sessions] = await Promise.all([

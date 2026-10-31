@@ -6,7 +6,8 @@ import { z } from "zod";
 import type { UserRole } from "@prisma/client";
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  // Stored in lower case; PostgreSQL compares text case-sensitively
+  email: z.string().trim().toLowerCase().email(),
   password: z.string().min(6),
 });
 

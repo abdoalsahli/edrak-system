@@ -39,3 +39,6 @@ next-env.d.ts
 
 # Local data backups (contain patient data — never commit)
 /backups
+
+# Local MySQL copy of the schema (npm run dev:mysql)
+/prisma/.schema.mysql.prisma

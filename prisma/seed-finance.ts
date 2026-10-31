@@ -56,7 +56,7 @@ async function main() {
       prisma.disbursement.aggregate({ where: { cashAccountId: a.id }, _sum: { amount: true } }),
     ]);
     const bal = Number(a.openingBalance) + Number(ins._sum.amount ?? 0) - Number(outs._sum.amount ?? 0);
-    console.log(`  ${a.name}: رصيد ${bal.toFixed(2)} ر.س`);
+    console.log(`  ${a.name}: رصيد ${bal.toFixed(2)} د.ل`);
   }
 }
 

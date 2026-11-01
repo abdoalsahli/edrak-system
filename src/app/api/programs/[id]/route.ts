@@ -7,6 +7,7 @@ import { syncProgramCommissionLedger } from "@/lib/ledger/LedgerService";
 import { z } from "zod";
 import { addDays } from "date-fns";
 import { previousPackage, extensionTotals, splitAmount } from "@/lib/programs/packageTotals";
+import { toJson } from "@/lib/json";
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const auth = await requireAuth();
@@ -233,8 +234,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           data: {
             sessionId: s.id,
             action: "RESCHEDULED",
-            previousValue: old ? { date: old.date, startTime: old.startTime } : undefined,
-            newValue: { date: slot.date, startTime: slot.startTime, reason: "تعديل مواعيد البرنامج" },
+            previousValue: toJson(old ? { date: old.date, startTime: old.startTime } : undefined),
+            newValue: toJson({ date: slot.date, startTime: slot.startTime, reason: "تعديل مواعيد البرنامج" }),
             performedBy: userId,
           },
         });

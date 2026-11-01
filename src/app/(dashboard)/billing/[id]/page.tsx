@@ -106,7 +106,7 @@ export default function InvoiceDetailPage() {
       />
 
       {/* Header card */}
-      <div className="card p-5 mb-4 grid grid-cols-2 gap-4 text-sm">
+      <div className="card p-5 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
         <div><span className="text-gray-500">الحالة:</span> <Badge variant={st.variant}>{st.label}</Badge></div>
         <div><span className="text-gray-500">الحالة:</span> <Link href={`/patients/${data.patient.id}`} className="text-primary-600 hover:underline">{data.patient.fullName}</Link></div>
         <div><span className="text-gray-500">تاريخ الإصدار:</span> {data.issueDate ? format(new Date(data.issueDate), "d MMM yyyy", { locale: arSA }) : "—"}</div>

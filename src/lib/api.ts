@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import type { UserRole } from "@prisma/client";
+import type { UserRole } from "@/lib/enums";
 
 export function unauthorized() {
   return NextResponse.json({ error: "غير مصرح" }, { status: 401 });

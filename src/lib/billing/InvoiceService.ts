@@ -1,4 +1,5 @@
-import type { Prisma, InvoiceStatus, SessionStatus } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
+import type { InvoiceStatus, SessionStatus } from "@/lib/enums";
 import { syncInvoiceLedger } from "@/lib/ledger/LedgerService";
 
 /**
@@ -139,7 +140,7 @@ export async function recalcSessionInvoice(
   });
   if (!invoice || invoice.status === "VOID") return null;
 
-  const billable = isBillable(session.status, session.isCharged);
+  const billable = isBillable(session.status as SessionStatus, session.isCharged);
   const totalAmount = billable ? round2(Number(session.price ?? 0)) : 0;
   const paidAmount = Number(invoice.paidAmount);
   const status = deriveInvoiceStatus(totalAmount, paidAmount, !billable);

@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { VoucherModal, type VoucherKind } from "@/components/finance/VoucherModal";
 import { ArrowLeftRight, Printer } from "lucide-react";
+import { StatementView } from "@/components/finance/StatementView";
 
 type Kind = "PATIENT" | "THERAPIST" | "EXPENSE" | "CUSTOM" | "CASH";
 type Nature = "DEBIT" | "CREDIT";
@@ -162,59 +163,15 @@ export default function AccountStatementPage() {
         </div>
       </div>
 
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs text-gray-500 border-b border-gray-200">
-              <tr>
-                <th className="px-4 py-2.5 text-start font-medium">التاريخ</th>
-                <th className="px-4 py-2.5 text-start font-medium">المستند</th>
-                <th className="px-4 py-2.5 text-start font-medium">البيان</th>
-                <th className="px-4 py-2.5 text-start font-medium">مدين</th>
-                <th className="px-4 py-2.5 text-start font-medium">دائن</th>
-                <th className="px-4 py-2.5 text-start font-medium">الرصيد</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="bg-gray-50/60 border-b border-gray-100">
-                <td className="px-4 py-2.5 text-gray-500" colSpan={5}>{from ? "رصيد مرحّل من الفترة السابقة" : "رصيد أول المدة"}</td>
-                <td className="px-4 py-2.5 font-semibold" dir="ltr">{money(broughtForward)}</td>
-              </tr>
-              {entries.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">لا توجد حركات في هذه الفترة</td></tr>
-              ) : (
-                entries.map((e) => {
-                  const b = SOURCE_BADGE[e.sourceType];
-                  const href = e.href;
-                  return (
-                    <tr key={e.id} className="border-b border-gray-50 hover:bg-gray-50/60">
-                      <td className="px-4 py-2.5 whitespace-nowrap">{fmtDate(e.date)}</td>
-                      <td className="px-4 py-2.5 whitespace-nowrap">
-                        <Badge variant={b.variant}>{b.label}</Badge>
-                        {e.reference && <span className="font-mono text-xs text-gray-500 ms-2" dir="ltr">{e.reference}</span>}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        {href ? <Link href={href} className="text-primary-600 hover:underline">{e.description}</Link> : e.description}
-                      </td>
-                      <td className="px-4 py-2.5" dir="ltr">{cell(e.debit)}</td>
-                      <td className="px-4 py-2.5" dir="ltr">{cell(e.credit)}</td>
-                      <td className={`px-4 py-2.5 font-semibold ${e.balance < 0 ? "text-amber-700" : "text-gray-800"}`} dir="ltr">{money(e.balance)}</td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-            <tfoot className="bg-gray-50 font-semibold border-t-2 border-gray-200">
-              <tr>
-                <td className="px-4 py-3" colSpan={3}>الإجمالي</td>
-                <td className="px-4 py-3" dir="ltr">{money(totals.totalDebit)}</td>
-                <td className="px-4 py-3" dir="ltr">{money(totals.totalCredit)}</td>
-                <td className="px-4 py-3" dir="ltr">{money(totals.balance)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
+      <StatementView
+        entries={entries}
+        totals={totals}
+        broughtForward={broughtForward}
+        showBroughtForward
+        broughtForwardLabel={from ? "رصيد مرحّل من الفترة السابقة" : "رصيد أول المدة"}
+        nature={account.nature}
+        sources={SOURCE_BADGE}
+      />
 
       <p className="text-xs text-gray-400 mt-3">
         الرصيد يُقرأ حسب طبيعة الحساب ({account.nature === "DEBIT" ? "مدين: المدين − الدائن" : "دائن: الدائن − المدين"}).

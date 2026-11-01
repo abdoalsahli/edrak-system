@@ -70,7 +70,7 @@ export default async function DashboardPage() {
           <StatCard label="البرامج النشطة" value={activePrograms} icon={ClipboardList} tone="info" />
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-3">
+        <div className="grid gap-5 xl:grid-cols-3 [&>*]:min-w-0">
           <div className="card p-6 xl:col-span-2">
             <h2 className="mb-4 text-lg font-semibold text-gray-800">مواعيد اليوم</h2>
             {todayApts.length === 0 ? (
@@ -161,7 +161,7 @@ export default async function DashboardPage() {
           <StatCard label="المعالجون" value={therapistCount} icon={Users} tone="info" />
         </div>
 
-        <div className="mb-6 grid gap-5 xl:grid-cols-3">
+        <div className="mb-6 grid gap-5 xl:grid-cols-3 [&>*]:min-w-0">
           <div className="xl:col-span-2"><MonthlyChartCard /></div>
           <RecentDocuments docs={docs} />
         </div>
@@ -214,7 +214,7 @@ export default async function DashboardPage() {
           <StatCard label="فواتير مسودة" value={draftInvoices} icon={FileWarning} tone="danger" />
         </div>
 
-        <div className="mb-6 grid gap-5 xl:grid-cols-3">
+        <div className="mb-6 grid gap-5 xl:grid-cols-3 [&>*]:min-w-0">
           <div className="xl:col-span-2"><MonthlyChartCard /></div>
           <RecentDocuments docs={docs} />
         </div>

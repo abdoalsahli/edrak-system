@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { arSA } from "date-fns/locale";
-import { ChevronRight, ChevronLeft, Printer, ArrowRight } from "lucide-react";
+import { ChevronRight, ChevronLeft, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { readApiError } from "@/lib/apiError";
@@ -58,9 +58,6 @@ export function CycleWorkspace({ programId, cycle, basePath, backHref }: {
   const { program, cycle: c } = detail;
   return (
     <div className="max-w-4xl">
-      <Link href={backHref} className="mb-3 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary-600 print:hidden">
-        <ArrowRight className="size-4" />رجوع
-      </Link>
       <PageHeader
         title={`${program.patient.fullName} — ${monthAr(c.number)}`}
         description={`${program.service.name} · الأخصائي ${program.therapist.fullName}`}

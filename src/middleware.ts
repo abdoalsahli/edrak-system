@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import type { UserRole } from "@prisma/client";
+import type { UserRole } from "@/lib/enums";
 
 const PUBLIC_PATHS = ["/login"];
 

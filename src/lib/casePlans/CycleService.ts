@@ -1,4 +1,4 @@
-import type { ProgramStatus, SessionStatus } from "@prisma/client";
+import type { ProgramStatus, SessionStatus } from "@/lib/enums";
 import { prisma } from "@/lib/prisma";
 import { cycleSize, type DocStatus } from "./options";
 
@@ -55,13 +55,13 @@ const programInclude = {
 } as const;
 
 type ProgramForCycles = {
-  status: ProgramStatus;
+  status: ProgramStatus | string;
   sessionsPerWeek: number;
-  sessions: { programSequenceNumber: number | null; status: SessionStatus; appointments: { date: Date }[] }[];
+  sessions: { programSequenceNumber: number | null; status: SessionStatus | string; appointments: { date: Date }[] }[];
   plans: {
-    id: string; cycleNumber: number; fromSequence: number; toSequence: number; status: DocStatus;
+    id: string; cycleNumber: number; fromSequence: number; toSequence: number; status: DocStatus | string;
     _count: { goals: number };
-    report: { id: string; status: DocStatus } | null;
+    report: { id: string; status: DocStatus | string } | null;
   }[];
 };
 
@@ -84,7 +84,7 @@ export function buildCycles(program: ProgramForCycles, now = new Date()): CycleS
   // The cycle after a reported one, while the program still runs
   const last = cycles[cycles.length - 1];
   if (
-    ACTIVE.includes(program.status) &&
+    ACTIVE.includes(program.status as ProgramStatus) &&
     (!last || (last.ended && last.report && last.report.status !== "DRAFT"))
   ) {
     if (last || maxSeq === 0) cycles.push(summarise(cycles.length + 1, from, from + size - 1));
@@ -97,7 +97,7 @@ export function buildCycles(program: ProgramForCycles, now = new Date()): CycleS
       const s = bySeq.get(q);
       if (s) list.push(s);
     }
-    const count = (f: (st: SessionStatus) => boolean) => list.filter((s) => f(s.status)).length;
+    const count = (f: (st: SessionStatus) => boolean) => list.filter((s) => f(s.status as SessionStatus)).length;
     const dates = list.map((s) => s.appointments[0]?.date).filter((d): d is Date => !!d).sort((a, b) => +a - +b);
     const sessions = {
       total: list.length,
@@ -115,8 +115,8 @@ export function buildCycles(program: ProgramForCycles, now = new Date()): CycleS
       started: sessions.completed + sessions.absent > 0 || (!!dates[0] && dates[0] <= today),
       ended,
       reportExpected: ended && sessions.completed + sessions.absent > 0,
-      plan: plan ? { id: plan.id, status: plan.status, goals: plan._count.goals } : null,
-      report: plan?.report ?? null,
+      plan: plan ? { id: plan.id, status: plan.status as DocStatus, goals: plan._count.goals } : null,
+      report: plan?.report ? { id: plan.report.id, status: plan.report.status as DocStatus } : null,
     };
   }
 }
@@ -198,7 +198,7 @@ export async function getCaseTasks(therapistId?: string): Promise<CaseTask[]> {
       const at = { ...base, cycle: c.number, firstDate: c.firstDate, lastDate: c.lastDate };
       if (!c.plan) {
         const allCancelled = c.sessions.total > 0 && c.sessions.cancelled === c.sessions.total;
-        if (!c.ended && !allCancelled && ACTIVE.includes(p.status)) tasks.push({ ...at, kind: "PLAN_MISSING", late: c.started });
+        if (!c.ended && !allCancelled && ACTIVE.includes(p.status as ProgramStatus)) tasks.push({ ...at, kind: "PLAN_MISSING", late: c.started });
         continue;
       }
       if (c.plan.status === "DRAFT") tasks.push({ ...at, kind: "PLAN_DRAFT", late: c.started });

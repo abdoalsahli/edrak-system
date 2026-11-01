@@ -68,11 +68,11 @@ export default async function CommissionsReportPage({ searchParams }: { searchPa
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-xs text-gray-500 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-2.5 text-start font-medium">الأخصائي</th>
+                <th className="px-4 py-2.5 text-start font-medium" data-card="title">الأخصائي</th>
                 <th className="px-4 py-2.5 text-start font-medium">محقّقة في الفترة</th>
                 <th className="px-4 py-2.5 text-start font-medium">مصروف في الفترة</th>
                 <th className="px-4 py-2.5 text-start font-medium">متوقّعة (لم تُقدَّم)</th>
-                <th className="px-4 py-2.5 text-start font-medium">رصيد الحساب اليوم</th>
+                <th className="px-4 py-2.5 text-start font-medium" data-card="amount">رصيد الحساب اليوم</th>
               </tr>
             </thead>
             <tbody>

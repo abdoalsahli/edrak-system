@@ -21,6 +21,7 @@ export const FUNDS_TABS: SectionTab[] = [
 
 export const REPORT_TABS: SectionTab[] = [
   { href: "/reports", label: "التقارير العامة" },
+  { href: "/finance/reports/daily", label: "الحركة اليومية" },
   { href: "/finance/reports/balances", label: "أرصدة الحسابات" },
   { href: "/finance/reports/treasury", label: "حركة الخزينة" },
   { href: "/finance/reports/commissions", label: "عمولات الأخصائيين" },

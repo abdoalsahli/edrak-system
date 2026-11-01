@@ -77,7 +77,7 @@ export default function SettlementsPage() {
       <SectionTabs tabs={DOCUMENT_TABS} />
 
       <div className="card p-4 mb-4">
-        <div className="grid grid-cols-4 gap-3 items-end">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 items-end">
           <div>
             <label className="label text-xs">النوع</label>
             <select value={type} onChange={(e) => setType(e.target.value)} className="input text-sm">
@@ -110,13 +110,13 @@ export default function SettlementsPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-xs text-gray-500 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-2.5 text-start font-medium">الرقم</th>
-                  <th className="px-4 py-2.5 text-start font-medium">التاريخ</th>
-                  <th className="px-4 py-2.5 text-start font-medium">النوع</th>
-                  <th className="px-4 py-2.5 text-start font-medium">البيان</th>
+                  <th className="px-4 py-2.5 text-start font-medium" data-card="meta">الرقم</th>
+                  <th className="px-4 py-2.5 text-start font-medium" data-card="meta">التاريخ</th>
+                  <th className="px-4 py-2.5 text-start font-medium" data-card="meta">النوع</th>
+                  <th className="px-4 py-2.5 text-start font-medium" data-card="title">البيان</th>
                   <th className="px-4 py-2.5 text-start font-medium">من حساب</th>
                   <th className="px-4 py-2.5 text-start font-medium">إلى حساب</th>
-                  <th className="px-4 py-2.5 text-start font-medium">المبلغ</th>
+                  <th className="px-4 py-2.5 text-start font-medium" data-card="amount">المبلغ</th>
                 </tr>
               </thead>
               <tbody>

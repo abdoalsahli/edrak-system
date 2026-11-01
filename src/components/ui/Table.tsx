@@ -16,9 +16,14 @@ export function Thead({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
+export function Th({ children, className, card }: {
+  children?: React.ReactNode;
+  className?: string;
+  /** The column's place in a phone card: the title, the amount, or a small meta value */
+  card?: "title" | "amount" | "meta";
+}) {
   return (
-    <th className={cn("whitespace-nowrap px-4 py-3 text-start text-sm font-medium text-gray-500", className)}>
+    <th data-card={card} className={cn("whitespace-nowrap px-3 py-3 text-start text-sm font-medium text-gray-500 sm:px-4", className)}>
       {children}
     </th>
   );
@@ -53,6 +58,6 @@ export function Tr({
 
 export function Td({ children, className, dir }: { children?: React.ReactNode; className?: string; dir?: string }) {
   return (
-    <td dir={dir} className={cn("px-4 py-3.5 text-gray-800", className)}>{children}</td>
+    <td dir={dir} className={cn("px-3 py-3 text-gray-800 sm:px-4 sm:py-3.5", className)}>{children}</td>
   );
 }

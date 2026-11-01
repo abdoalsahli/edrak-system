@@ -1,11 +1,5 @@
-import type {
-  Prisma,
-  AccountKind,
-  AccountNature,
-  LedgerSource,
-  ExpenseCategory,
-  DisbursementType,
-} from "@prisma/client";
+import type { Prisma } from "@prisma/client";
+import type { AccountKind, AccountNature, LedgerSource, ExpenseCategory, DisbursementType } from "@/lib/enums";
 import { nextVoucherNumber } from "@/lib/billing/VoucherService";
 
 /**
@@ -70,7 +64,7 @@ const KIND_PREFIX: Record<AccountKind, string> = {
  * DEBIT accounts (patients, expenses): debit − credit → what the party owes.
  * CREDIT accounts (therapists, payables): credit − debit → what we owe them.
  */
-export function naturalBalance(nature: AccountNature, debit: number, credit: number): number {
+export function naturalBalance(nature: AccountNature | string, debit: number, credit: number): number {
   return r2(nature === "DEBIT" ? debit - credit : credit - debit);
 }
 
@@ -776,7 +770,7 @@ export async function getAccountStatement(db: Tx, accountId: string, from?: Date
       ? (await db.program.findMany({ where: { id: { in: commissionIds } }, select: { id: true } })).map((p) => p.id)
       : []
   );
-  const hrefOf = (type: LedgerSource, id: string) =>
+  const hrefOf = (type: LedgerSource | string, id: string) =>
     type === "INVOICE" ? `/billing/${id}`
     : type === "COMMISSION" ? (programIds.has(id) ? `/programs/${id}` : `/sessions/${id}`)
     : null;
@@ -789,7 +783,7 @@ export async function getAccountStatement(db: Tx, accountId: string, from?: Date
     return {
       id: r.id,
       date: r.date.toISOString().slice(0, 10),
-      sourceType: r.sourceType,
+      sourceType: r.sourceType as LedgerSource,
       sourceId: r.sourceId,
       reference: r.reference,
       description: r.description,

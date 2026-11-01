@@ -159,7 +159,7 @@ export function VoucherModal({
         )}
 
         {/* ── Amount & cash ──────────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="label">المبلغ <span className="text-red-500">*</span></label>
             <input required type="number" min={0.01} step="0.01" value={amount}
@@ -173,14 +173,14 @@ export function VoucherModal({
           {kind !== "settlement" && (
             <>
               <PaymentMethodField value={method} onChange={setMethod} direction={kind === "receipt" ? "to" : "from"} />
-              <div className="col-span-2">
+              <div className="col-span-full sm:col-span-2">
                 <label className="label">رقم المرجع</label>
                 <input value={reference} onChange={(e) => setReference(e.target.value)} className="input" dir="ltr" placeholder="اختياري" />
               </div>
             </>
           )}
 
-          <div className="col-span-2">
+          <div className="col-span-full sm:col-span-2">
             <label className="label">البيان {kind !== "receipt" && <span className="text-red-500">*</span>}</label>
             <input required={kind !== "receipt"} value={description} onChange={(e) => setDescription(e.target.value)} className="input"
               placeholder={kind === "receipt" ? "اختياري" : ""} />

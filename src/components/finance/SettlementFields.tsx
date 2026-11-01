@@ -124,7 +124,7 @@ export function SettlementFields({ accounts, fixedAccount, amount, onChange }: {
       </div>
 
       {isFree && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="label">التصنيف</label>
             <select value={freeType} onChange={(e) => setFreeType(e.target.value as SettlementType)} className="input">
@@ -143,7 +143,7 @@ export function SettlementFields({ accounts, fixedAccount, amount, onChange }: {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="label">
             {isFree && fixedAccount ? (freeSide === "from" ? "من حساب" : "إلى حساب") : t.main.label}

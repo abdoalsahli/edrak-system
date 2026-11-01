@@ -136,7 +136,7 @@ export default function CashPage() {
             <label className="label">الاسم <span className="text-red-500">*</span></label>
             <input required value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="صندوق الاستقبال" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">النوع</label>
               <select value={type} onChange={(e) => setType(e.target.value as "CASH" | "BANK")} className="input">

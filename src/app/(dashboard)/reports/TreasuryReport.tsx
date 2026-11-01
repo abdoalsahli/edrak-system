@@ -30,7 +30,8 @@ const TYPE_BADGE = {
   OPENING: { label: "افتتاحي", variant: "gray" as const },
   RECEIPT: { label: "قبض", variant: "success" as const },
   DISBURSEMENT: { label: "صرف", variant: "danger" as const },
-  TRANSFER: { label: "تحويل", variant: "info" as const },
+  TRANSFER: { label: "تحويل داخلي", variant: "gray" as const },
+  SETTLEMENT: { label: "تسوية", variant: "info" as const },
 };
 
 /** تقرير حركة الخزينة — every movement across all cash accounts for a period. */
@@ -38,6 +39,15 @@ export async function TreasuryReport({ from, to, fromIso, toIso }: { from: Date;
   const { broughtForward, entries, totals, byAccount, breakdown } = await getTreasuryMovement({ from, to });
 
   const disbursementRows = Object.entries(breakdown.byDisbursementType);
+  const settlementsIn = Object.entries(breakdown.settlementsIn);
+  const settlementsOut = Object.entries(breakdown.settlementsOut);
+  // Each transfer posts on two boxes; count the transfers, not their two sides
+  // The per-box table adds up its own rows (they include transfers between boxes)
+  const boxIn = byAccount.reduce((s, a) => s + a.totalIn, 0);
+  const boxOut = byAccount.reduce((s, a) => s + a.totalOut, 0);
+  const detailIn = entries.reduce((s, e) => s + e.in, 0);
+  const detailOut = entries.reduce((s, e) => s + e.out, 0);
+  const internalCount = new Set(entries.filter((e) => e.internal).map((e) => e.voucherNumber)).size;
 
   return (
     <div className="space-y-6">
@@ -87,19 +97,25 @@ export async function TreasuryReport({ from, to, fromIso, toIso }: { from: Date;
                   <td className="px-4 py-2 text-green-700" dir="ltr">{money(breakdown.openings)}</td>
                 </tr>
               )}
-              <tr className="border-t border-gray-50">
-                <td className="px-4 py-2 ps-8">تحويلات واردة من صناديق أخرى</td>
-                <td className="px-4 py-2 text-green-700" dir="ltr">{cell(breakdown.transfersIn)}</td>
-              </tr>
+              {/* Settlements into the treasury: stock-count surplus, transfers from outside, … */}
+              {settlementsIn.map(([label, amount]) => (
+                <tr key={"in" + label} className="border-t border-gray-50">
+                  <td className="px-4 py-2 ps-8">{label}</td>
+                  <td className="px-4 py-2 text-green-700" dir="ltr">{money(amount)}</td>
+                </tr>
+              ))}
 
               <tr className="bg-red-50/50 border-t border-gray-100">
                 <td className="px-4 py-2 font-medium text-red-800" colSpan={2}>الصادر</td>
               </tr>
-              <tr className="border-t border-gray-50">
-                <td className="px-4 py-2 ps-8">تحويلات صادرة إلى صناديق أخرى</td>
-                <td className="px-4 py-2 text-red-600" dir="ltr">{cell(breakdown.transfersOut)}</td>
-              </tr>
-              {disbursementRows.length === 0 && (
+              {/* Settlements out of the treasury: profits withdrawn, stock-count shortage, … */}
+              {settlementsOut.map(([label, amount]) => (
+                <tr key={"out" + label} className="border-t border-gray-50">
+                  <td className="px-4 py-2 ps-8">{label}</td>
+                  <td className="px-4 py-2 text-red-600" dir="ltr">{money(amount)}</td>
+                </tr>
+              ))}
+              {disbursementRows.length === 0 && settlementsOut.length === 0 && (
                 <tr className="border-t border-gray-50">
                   <td className="px-4 py-2 ps-8 text-gray-400" colSpan={2}>لا توجد سندات صرف في هذه الفترة</td>
                 </tr>
@@ -121,6 +137,13 @@ export async function TreasuryReport({ from, to, fromIso, toIso }: { from: Date;
               ))}
             </tbody>
             <tfoot className="bg-gray-50 font-semibold border-t-2 border-gray-200">
+              {internalCount > 0 && (
+                <tr>
+                  <td className="px-4 py-2 text-xs font-normal text-gray-500" colSpan={2}>
+                    التحويلات بين الصناديق والحسابات البنكية ({internalCount === 1 ? "تحويل واحد" : `${internalCount} تحويلات`}) لا تُحسب هنا — المال بقي في الخزينة.
+                  </td>
+                </tr>
+              )}
               <tr>
                 <td className="px-4 py-2.5">صافي حركة الفترة</td>
                 <td className={`px-4 py-2.5 ${totals.totalIn - totals.totalOut < 0 ? "text-red-600" : "text-green-700"}`} dir="ltr">
@@ -138,11 +161,12 @@ export async function TreasuryReport({ from, to, fromIso, toIso }: { from: Date;
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-xs text-gray-500">
                 <tr>
-                  <th className="px-3 py-2 text-start font-medium">الحساب</th>
+                  <th className="px-3 py-2 text-start font-medium" data-card="title">الحساب</th>
                   <th className="px-3 py-2 text-start font-medium">أول المدة</th>
-                  <th className="px-3 py-2 text-start font-medium">وارد</th>
-                  <th className="px-3 py-2 text-start font-medium">صادر</th>
-                  <th className="px-3 py-2 text-start font-medium">آخر المدة</th>
+                  <th className="px-3 py-2 text-start font-medium" data-hide-mobile>وارد</th>
+                  <th className="px-3 py-2 text-start font-medium" data-hide-mobile>صادر</th>
+                  <th className="hidden" data-show-mobile>صافي الحركة</th>
+                  <th className="px-3 py-2 text-start font-medium" data-card="amount">آخر المدة</th>
                 </tr>
               </thead>
               <tbody>
@@ -159,6 +183,7 @@ export async function TreasuryReport({ from, to, fromIso, toIso }: { from: Date;
                     <td className="px-3 py-2" dir="ltr">{money(a.broughtForward)}</td>
                     <td className="px-3 py-2 text-green-700" dir="ltr">{cell(a.totalIn)}</td>
                     <td className="px-3 py-2 text-red-600" dir="ltr">{cell(a.totalOut)}</td>
+                    <td className={`hidden font-semibold ${a.totalIn - a.totalOut >= 0 ? "text-green-700" : "text-red-600"}`} dir="ltr">{a.totalIn - a.totalOut >= 0 ? "+" : "−"}{money(Math.abs(a.totalIn - a.totalOut))}</td>
                     <td className="px-3 py-2 font-semibold" dir="ltr">{money(a.closingBalance)}</td>
                   </tr>
                 ))}
@@ -167,8 +192,9 @@ export async function TreasuryReport({ from, to, fromIso, toIso }: { from: Date;
                 <tr>
                   <td className="px-3 py-2.5">الإجمالي</td>
                   <td className="px-3 py-2.5" dir="ltr">{money(broughtForward)}</td>
-                  <td className="px-3 py-2.5 text-green-700" dir="ltr">{money(totals.totalIn)}</td>
-                  <td className="px-3 py-2.5 text-red-600" dir="ltr">{money(totals.totalOut)}</td>
+                  <td className="px-3 py-2.5 text-green-700" dir="ltr">{money(boxIn)}</td>
+                  <td className="px-3 py-2.5 text-red-600" dir="ltr">{money(boxOut)}</td>
+                  <td className={`hidden font-semibold ${boxIn - boxOut >= 0 ? "text-green-700" : "text-red-600"}`} dir="ltr">{boxIn - boxOut >= 0 ? "+" : "−"}{money(Math.abs(boxIn - boxOut))}</td>
                   <td className="px-3 py-2.5 text-primary-800" dir="ltr">{money(totals.closingBalance)}</td>
                 </tr>
               </tfoot>
@@ -186,23 +212,25 @@ export async function TreasuryReport({ from, to, fromIso, toIso }: { from: Date;
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-xs text-gray-500">
               <tr>
-                <th className="px-4 py-2 text-start font-medium">التاريخ</th>
-                <th className="px-4 py-2 text-start font-medium">المستند</th>
-                <th className="px-4 py-2 text-start font-medium">البيان</th>
+                <th className="px-4 py-2 text-start font-medium" data-card="meta">التاريخ</th>
+                <th className="px-4 py-2 text-start font-medium" data-card="meta">المستند</th>
+                <th className="px-4 py-2 text-start font-medium" data-card="title">البيان</th>
                 <th className="px-4 py-2 text-start font-medium">الصندوق</th>
-                <th className="px-4 py-2 text-start font-medium">وارد</th>
-                <th className="px-4 py-2 text-start font-medium">صادر</th>
+                <th className="px-4 py-2 text-start font-medium" data-hide-mobile>وارد</th>
+                <th className="px-4 py-2 text-start font-medium" data-hide-mobile>صادر</th>
+                <th className="hidden" data-show-mobile data-card="amount">المبلغ</th>
                 <th className="px-4 py-2 text-start font-medium">الرصيد</th>
               </tr>
             </thead>
             <tbody>
               <tr className="bg-gray-50/60 border-b border-gray-100">
                 <td className="px-4 py-2.5 text-gray-500" colSpan={6}>رصيد أول المدة</td>
+                <td className="hidden" />
                 <td className="px-4 py-2.5 font-semibold" dir="ltr">{money(broughtForward)}</td>
               </tr>
               {entries.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400">لا توجد حركات في هذه الفترة</td>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">لا توجد حركات في هذه الفترة</td>
                 </tr>
               ) : (
                 entries.map((e, i) => {
@@ -223,6 +251,9 @@ export async function TreasuryReport({ from, to, fromIso, toIso }: { from: Date;
                       <td className="px-4 py-2.5 text-xs text-gray-600 whitespace-nowrap">{e.accountName}</td>
                       <td className="px-4 py-2.5 text-green-700" dir="ltr">{cell(e.in)}</td>
                       <td className="px-4 py-2.5 text-red-600" dir="ltr">{cell(e.out)}</td>
+                      <td className={`hidden font-semibold ${e.in ? "text-green-700" : "text-red-600"}`} dir="ltr">
+                        {e.in ? `+${money(e.in)}` : `−${money(e.out)}`}
+                      </td>
                       <td className={`px-4 py-2.5 font-semibold ${e.balance < 0 ? "text-red-600" : "text-gray-800"}`} dir="ltr">
                         {money(e.balance)}
                       </td>
@@ -234,8 +265,9 @@ export async function TreasuryReport({ from, to, fromIso, toIso }: { from: Date;
             <tfoot className="bg-gray-50 font-semibold border-t-2 border-gray-200">
               <tr>
                 <td className="px-4 py-3" colSpan={4}>الإجمالي</td>
-                <td className="px-4 py-3 text-green-700" dir="ltr">{money(totals.totalIn)}</td>
-                <td className="px-4 py-3 text-red-600" dir="ltr">{money(totals.totalOut)}</td>
+                <td className="px-4 py-3 text-green-700" dir="ltr">{money(detailIn)}</td>
+                <td className="px-4 py-3 text-red-600" dir="ltr">{money(detailOut)}</td>
+                <td className="hidden" />
                 <td className="px-4 py-3 text-primary-800" dir="ltr">{money(totals.closingBalance)}</td>
               </tr>
             </tfoot>

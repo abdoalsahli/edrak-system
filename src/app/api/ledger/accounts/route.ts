@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth, ok, badRequest } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import type { AccountKind } from "@prisma/client";
+import type { AccountKind } from "@/lib/enums";
 import { getBalances, naturalBalance, nextAccountCode, ensurePartyAccounts } from "@/lib/ledger/LedgerService";
 
 const CreateSchema = z.object({

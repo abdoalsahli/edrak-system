@@ -192,7 +192,7 @@ export default async function ReportsPage({
       <SectionTabs tabs={REPORT_TABS} />
 
       {/* Report type tabs */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex flex-wrap gap-2 mb-4">
         {[
           { key: "billing", label: "تقرير المدفوعات" },
           { key: "therapist", label: "إنتاجية المعالجين" },
@@ -209,7 +209,7 @@ export default async function ReportsPage({
       </div>
 
       {/* Date range filter */}
-      <form method="get" className="flex gap-2 mb-6">
+      <form method="get" className="flex flex-wrap gap-2 mb-6">
         <input type="hidden" name="report" value={report} />
         <div>
           <label className="label text-xs">من</label>

@@ -1,7 +1,9 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
-import type { UserRole } from "@prisma/client";
+import { TableCards } from "@/components/ui/TableCards";
+import { BackButton } from "@/components/layout/BackButton";
+import type { UserRole } from "@/lib/enums";
 
 export default async function DashboardLayout({
   children,
@@ -16,8 +18,12 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="print:hidden"><Sidebar userRole={user.role} userName={user.name ?? ""} /></div>
-      <main className="min-h-screen pr-64 print:pr-0">
-        <div className="p-8 print:p-0">{children}</div>
+      <main className="min-h-screen pt-14 duration-200 lg:pr-[var(--sidebar-w,16rem)] [html[data-sidebar-animate]_&]:transition-[padding] lg:pt-0 print:pr-0 print:pt-0">
+        <div className="p-4 sm:p-6 lg:p-8 print:p-0">
+          <BackButton />
+          {children}
+        </div>
+        <TableCards />
       </main>
     </div>
   );

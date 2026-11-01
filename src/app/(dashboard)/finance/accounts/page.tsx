@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { readApiError } from "@/lib/apiError";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Modal } from "@/components/ui/Modal";
+import { balanceTone } from "@/lib/balanceTone";
 
 type Kind = "PATIENT" | "THERAPIST" | "EXPENSE" | "CUSTOM";
 type Nature = "DEBIT" | "CREDIT";
@@ -33,13 +34,6 @@ const KIND_TABS: { key: "" | Kind; label: string }[] = [
 const KIND_AR: Record<Kind, string> = { PATIENT: "حالة", THERAPIST: "أخصائي", EXPENSE: "مصروف", CUSTOM: "عام" };
 
 const money = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-/** What a non-zero balance means for an account, in plain words. */
-function balanceLabel(nature: Nature, balance: number): string {
-  if (Math.abs(balance) < 0.005) return "متوازن";
-  const debitSide = (nature === "DEBIT") === balance > 0;
-  return debitSide ? "مدين" : "دائن";
-}
 
 export default function AccountsPage() {
   const searchParams = useSearchParams();
@@ -127,13 +121,13 @@ export default function AccountsPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-xs text-gray-500 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-2.5 text-start font-medium">الرمز</th>
-                  <th className="px-4 py-2.5 text-start font-medium">الحساب</th>
-                  <th className="px-4 py-2.5 text-start font-medium">النوع</th>
-                  <th className="px-4 py-2.5 text-start font-medium">الطبيعة</th>
-                  <th className="px-4 py-2.5 text-start font-medium">مدين</th>
-                  <th className="px-4 py-2.5 text-start font-medium">دائن</th>
-                  <th className="px-4 py-2.5 text-start font-medium">الرصيد</th>
+                  <th className="px-4 py-2.5 text-start font-medium" data-card="meta">الرمز</th>
+                  <th className="px-4 py-2.5 text-start font-medium" data-card="title">الحساب</th>
+                  <th className="px-4 py-2.5 text-start font-medium" data-card="meta">النوع</th>
+                  <th className="px-4 py-2.5 text-start font-medium" data-hide-mobile>الطبيعة</th>
+                  <th className="px-4 py-2.5 text-start font-medium" data-hide-mobile>مدين</th>
+                  <th className="px-4 py-2.5 text-start font-medium" data-hide-mobile>دائن</th>
+                  <th className="px-4 py-2.5 text-start font-medium" data-card="amount">الرصيد</th>
                 </tr>
               </thead>
               <tbody>
@@ -148,9 +142,8 @@ export default function AccountsPage() {
                     <td className="px-4 py-2.5 text-gray-600">{r.nature === "DEBIT" ? "مدين" : "دائن"}</td>
                     <td className="px-4 py-2.5" dir="ltr">{money(r.debit)}</td>
                     <td className="px-4 py-2.5" dir="ltr">{money(r.credit)}</td>
-                    <td className="px-4 py-2.5 font-semibold" dir="ltr">
+                    <td className={`px-4 py-2.5 font-semibold ${balanceTone(r.nature, r.balance)}`} dir="ltr">
                       {money(Math.abs(r.balance))}
-                      <span className="text-xs font-normal text-gray-400 ms-1">{balanceLabel(r.nature, r.balance)}</span>
                     </td>
                   </tr>
                 ))}
@@ -179,7 +172,7 @@ export default function AccountsPage() {
             <label className="label">اسم الحساب <span className="text-red-500">*</span></label>
             <input required value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="مثال: شركة الكهرباء، مؤجّر المبنى، تبرعات" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">النوع</label>
               <select value={newKind} onChange={(e) => setNewKind(e.target.value as "CUSTOM" | "EXPENSE")} className="input">

@@ -94,3 +94,150 @@
     @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-red-100 text-red-600;
   }
 }
+
+/* ── Tables as cards on phones (labels set by <TableCards />) ─────────────── */
+@media screen and (max-width: 767px) {
+  main table.cards-ready,
+  main table.cards-ready > tbody,
+  main table.cards-ready > tfoot {
+    display: block;
+    width: 100%;
+  }
+  main table.cards-ready > thead {
+    display: none;
+  }
+  main table.cards-ready tr {
+    display: block;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid theme("colors.gray.200");
+  }
+  main table.cards-ready > tfoot tr {
+    background: theme("colors.gray.50");
+    font-weight: 600;
+  }
+  main table.cards-ready td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.2rem 0 !important;
+    border: 0;
+    min-width: 0 !important;
+    white-space: normal !important;
+    text-align: end;
+  }
+  /* The first cell is the card's title */
+  main table.cards-ready td:first-child {
+    justify-content: flex-start;
+    text-align: start;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: theme("colors.gray.800");
+    padding-bottom: 0.35rem !important;
+  }
+  main table.cards-ready td[data-label]::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    text-align: start;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: theme("colors.gray.500");
+  }
+  /* Cells with nothing to show (an empty actions column) take no room */
+  main table.cards-ready td:empty {
+    display: none;
+  }
+  /* A whole-row note or subtotal */
+  main table.cards-ready tr[data-span] td {
+    justify-content: space-between;
+    text-align: start;
+  }
+  /* The scroll wrappers are not needed once rows are cards */
+  main .overflow-x-auto:has(> table.cards-ready) {
+    overflow-x: visible;
+  }
+}
+
+/* Columns that only make sense on one side of the breakpoint */
+@media screen and (max-width: 767px) {
+  main table.cards-ready td[data-hide-mobile] {
+    display: none !important;
+  }
+  main table.cards-ready td[data-show-mobile] {
+    display: flex !important;
+  }
+}
+@media screen and (max-width: 767px) {
+  main table.cards-ready td[data-show-mobile]:empty {
+    display: none !important;
+  }
+}
+
+/* Card roles (data-card on the column header): title + amount on one line,
+   meta columns on a small line under them, other columns as labelled rows */
+@media screen and (max-width: 767px) {
+  main table.cards-ready[data-card-layout] tbody tr:not([data-span]) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0.5rem;
+    row-gap: 0.15rem;
+  }
+  main table.cards-ready[data-card-layout] tbody td {
+    order: 4;
+    width: 100%;
+  }
+  /* Undo the default «first cell is the title» look */
+  main table.cards-ready[data-card-layout] tbody td:first-child {
+    font-weight: inherit;
+    font-size: inherit;
+    padding-bottom: 0.2rem !important;
+  }
+  main table.cards-ready[data-card-layout] td[data-card]::before {
+    content: none;
+  }
+  main table.cards-ready[data-card-layout] tbody td[data-card="title"] {
+    order: 1;
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    justify-content: flex-start;
+    font-size: 1rem;
+    font-weight: 600;
+    color: theme("colors.gray.800");
+  }
+  main table.cards-ready[data-card-layout] tbody td[data-card="amount"] {
+    order: 2;
+    width: auto;
+    flex: 0 0 auto;
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+  main table.cards-ready[data-card-layout] tbody td[data-card="meta"] {
+    order: 3;
+    width: auto;
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: theme("colors.gray.500");
+    padding-top: 0 !important;
+  }
+  /* «·» between meta values on their line */
+  main table.cards-ready[data-card-layout] tbody td[data-card="meta"] ~ td[data-card="meta"]::before {
+    content: "·";
+    color: theme("colors.gray.400");
+    margin-inline-end: 0.35rem;
+  }
+  /* The meta line starts on its own line, under the title */
+  main table.cards-ready[data-card-layout] tbody tr:not([data-span])::after {
+    content: "";
+    order: 2;
+    flex-basis: 100%;
+    height: 0;
+  }
+  main table.cards-ready[data-card-layout] tbody td[data-card="meta"] * {
+    font-size: inherit !important;
+    color: inherit;
+  }
+}

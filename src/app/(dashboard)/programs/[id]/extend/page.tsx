@@ -156,7 +156,7 @@ export default function ExtendProgramPage() {
       <div className="max-w-4xl">
         <PageHeader title="معاينة التمديد" description={subtitle} />
 
-        <div className="grid grid-cols-4 gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-5">
           {[
             { label: "جلسات إضافية", value: proposed.length, color: "text-primary-700 bg-primary-50" },
             { label: "قيمة التمديد", value: money(added.value), color: "text-blue-700 bg-blue-50" },
@@ -174,7 +174,7 @@ export default function ExtendProgramPage() {
 
         <ScheduleCalendar proposed={proposed} onChange={setProposed} durationMin={durationMin} firstSequence={firstSequence} />
 
-        <div className="card p-4 mt-4 grid grid-cols-3 gap-4 text-sm">
+        <div className="card p-4 mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
           <div>
             <p className="text-xs text-gray-500">قيمة التمديد على الحالة</p>
             <p className="font-bold text-gray-800 mt-0.5">{money(added.value)}</p>
@@ -209,7 +209,7 @@ export default function ExtendProgramPage() {
       <PageHeader title="تمديد البرنامج" description={subtitle} />
 
       <form onSubmit={generatePreview} className="card p-6 space-y-4">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="label">تاريخ بدء التمديد <span className="text-red-500">*</span></label>
             <input required type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input" dir="ltr" />

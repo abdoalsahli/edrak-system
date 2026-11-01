@@ -20,6 +20,14 @@ export function Modal({
   children: React.ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
 }) {
+  // Esc closes the top-most modal
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   useEffect(() => {
     if (!open) return;
     openCount++;
@@ -41,18 +49,18 @@ export function Modal({
 
   // Rendered at <body> so a modal opened from inside another form never nests <form>s
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <div
         className="absolute inset-0 bg-gray-800/40 backdrop-blur-[2px]"
         onClick={onClose}
       />
       <div
         className={cn(
-          "relative bg-white rounded-card shadow-xl w-full",
+          "relative w-full rounded-t-card bg-white shadow-xl sm:rounded-card",
           sizeMap[size]
         )}
       >
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200">
+        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-4 sm:px-6 sm:py-5">
           <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
           <button
             onClick={onClose}
@@ -61,7 +69,7 @@ export function Modal({
             <X className="size-5" />
           </button>
         </div>
-        <div className="p-6 max-h-[calc(100vh-8rem)] overflow-y-auto">{children}</div>
+        <div className="max-h-[calc(100dvh-6rem)] overflow-y-auto p-4 sm:max-h-[calc(100vh-8rem)] sm:p-6">{children}</div>
       </div>
     </div>,
     document.body

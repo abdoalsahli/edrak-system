@@ -97,7 +97,7 @@ export default function ReceiptsPage() {
       <SectionTabs tabs={DOCUMENT_TABS} />
 
       {/* Totals */}
-      <div className="grid grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
         <div className="card p-4">
           <p className="text-xs text-gray-500">إجمالي المقبوض</p>
           <p className="text-xl font-bold text-green-600 mt-1" dir="ltr">{fmt(totals.received)}</p>
@@ -114,7 +114,7 @@ export default function ReceiptsPage() {
 
       {/* Filters */}
       <div className="card p-4 mb-4">
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <div>
             <label className="label text-xs">الحالة</label>
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="بحث بالاسم..." className="input text-sm" />
@@ -153,14 +153,13 @@ export default function ReceiptsPage() {
           <Table>
             <Thead>
               <tr>
-                <Th>رقم السند</Th>
-                <Th>التاريخ</Th>
-                <Th>الحساب</Th>
-                <Th>الفاتورة</Th>
-                <Th>الطريقة</Th>
+                <Th card="meta">رقم السند</Th>
+                <Th card="meta">التاريخ</Th>
+                <Th card="title">الحساب</Th>
+                <Th card="meta">الطريقة</Th>
                 <Th>الصندوق</Th>
                 <Th>المستلم</Th>
-                <Th>المبلغ</Th>
+                <Th card="amount">المبلغ</Th>
               </tr>
             </Thead>
             <Tbody>
@@ -180,15 +179,6 @@ export default function ReceiptsPage() {
                         </Link>
                       ) : (
                         <span className="text-sm">{r.patient?.fullName ?? "—"}</span>
-                      )}
-                    </Td>
-                    <Td>
-                      {r.invoice ? (
-                        <Link href={`/billing/${r.invoice.id}`} className="text-primary-600 hover:underline text-xs">
-                          عرض الفاتورة
-                        </Link>
-                      ) : (
-                        <span className="text-xs text-gray-400">على الحساب</span>
                       )}
                     </Td>
                     <Td className="text-sm">

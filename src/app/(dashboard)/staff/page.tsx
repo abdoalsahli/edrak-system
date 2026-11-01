@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Stethoscope, UserPlus } from "lucide-react";
-import type { UserRole } from "@prisma/client";
+import type { UserRole } from "@/lib/enums";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, Thead, Th, Tbody, Tr, Td } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
@@ -25,7 +25,7 @@ type Row = {
   title: string | null;
   phone: string | null;
   isActive: boolean;
-  login: { role: UserRole; isActive: boolean } | null;
+  login: { role: UserRole | string; isActive: boolean } | null;
 };
 
 const FILTERS = [
@@ -122,7 +122,7 @@ export default async function StaffPage({ searchParams }: { searchParams: { type
                   <Td>
                     {r.login ? (
                       <span className={cn("text-sm", r.login.isActive ? "text-gray-700" : "text-gray-400 line-through")}>
-                        {ROLE_LABEL[r.login.role]}
+                        {ROLE_LABEL[r.login.role as UserRole]}
                       </span>
                     ) : (
                       <span className="text-xs text-gray-400">بدون حساب</span>

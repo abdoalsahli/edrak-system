@@ -3,7 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import type { UserRole } from "@prisma/client";
+import type { UserRole } from "@/lib/enums";
 
 const loginSchema = z.object({
   // Stored in lower case; PostgreSQL compares text case-sensitively
@@ -33,7 +33,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const valid = await bcrypt.compare(parsed.data.password, user.password);
           if (!valid) return null;
 
-          return { id: user.id, name: user.name, email: user.email, role: user.role };
+          return { id: user.id, name: user.name, email: user.email, role: user.role as UserRole };
         } catch {
           return null;
         }

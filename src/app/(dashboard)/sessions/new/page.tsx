@@ -97,7 +97,7 @@ export default function NewSessionPage() {
             {therapists.map((t) => <option key={t.id} value={t.id}>{t.fullName}</option>)}
           </select>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="label">التاريخ <span className="text-red-500">*</span></label>
             <input required type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input" dir="ltr" />

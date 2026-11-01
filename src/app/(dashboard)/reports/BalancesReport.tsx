@@ -1,8 +1,9 @@
 import Link from "next/link";
-import type { AccountKind } from "@prisma/client";
+import type { AccountKind } from "@/lib/enums";
 import { getAccountBalances, type LedgerBalanceRow } from "@/lib/billing/TreasuryService";
 import { PrintButton } from "./PrintButton";
 import { Wallet, Landmark } from "lucide-react";
+import { balanceTone } from "@/lib/balanceTone";
 
 const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 const fmtDate = (iso: string) => {
@@ -12,11 +13,11 @@ const fmtDate = (iso: string) => {
 const money = (n: number) =>
   n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const SECTIONS: { kind: AccountKind; title: string; positive: string; negative: string }[] = [
-  { kind: "PATIENT", title: "حسابات الحالات", positive: "عليها", negative: "لها" },
-  { kind: "THERAPIST", title: "حسابات الأخصائيين", positive: "له", negative: "عليه (سُلفة)" },
-  { kind: "EXPENSE", title: "حسابات المصروفات", positive: "مصروف", negative: "مسترد" },
-  { kind: "CUSTOM", title: "حسابات عامة", positive: "", negative: "" },
+const SECTIONS: { kind: AccountKind; title: string }[] = [
+  { kind: "PATIENT", title: "حسابات الحالات" },
+  { kind: "THERAPIST", title: "حسابات الأخصائيين" },
+  { kind: "EXPENSE", title: "حسابات المصروفات" },
+  { kind: "CUSTOM", title: "حسابات عامة" },
 ];
 
 /** تقرير أرصدة الحسابات — every current account and cash account as of a date. */
@@ -56,7 +57,7 @@ export async function BalancesReport({ asOf, asOfIso }: { asOf: Date; asOfIso: s
       </div>
 
       {SECTIONS.map((sec) => (
-        <AccountSection key={sec.kind} title={sec.title} rows={groups[sec.kind]} positive={sec.positive} negative={sec.negative} asOfIso={asOfIso} />
+        <AccountSection key={sec.kind} title={sec.title} rows={groups[sec.kind]} asOfIso={asOfIso} />
       ))}
 
       {/* Cash */}
@@ -92,8 +93,8 @@ export async function BalancesReport({ asOf, asOfIso }: { asOf: Date; asOfIso: s
 }
 
 function AccountSection({
-  title, rows, positive, negative, asOfIso,
-}: { title: string; rows: LedgerBalanceRow[]; positive: string; negative: string; asOfIso: string }) {
+  title, rows, asOfIso,
+}: { title: string; rows: LedgerBalanceRow[]; asOfIso: string }) {
   if (rows.length === 0) return null;
   const sumDebit = rows.reduce((s, r) => s + r.debit, 0);
   const sumCredit = rows.reduce((s, r) => s + r.credit, 0);
@@ -108,11 +109,11 @@ function AccountSection({
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-xs text-gray-500">
             <tr>
-              <th className="px-4 py-2 text-start font-medium">الرمز</th>
-              <th className="px-4 py-2 text-start font-medium">الحساب</th>
-              <th className="px-4 py-2 text-start font-medium">مدين</th>
-              <th className="px-4 py-2 text-start font-medium">دائن</th>
-              <th className="px-4 py-2 text-start font-medium">الرصيد</th>
+              <th className="px-4 py-2 text-start font-medium" data-card="meta">الرمز</th>
+              <th className="px-4 py-2 text-start font-medium" data-card="title">الحساب</th>
+              <th className="px-4 py-2 text-start font-medium" data-hide-mobile>مدين</th>
+              <th className="px-4 py-2 text-start font-medium" data-hide-mobile>دائن</th>
+              <th className="px-4 py-2 text-start font-medium" data-card="amount">الرصيد</th>
             </tr>
           </thead>
           <tbody>
@@ -126,13 +127,8 @@ function AccountSection({
                 </td>
                 <td className="px-4 py-2.5" dir="ltr">{money(r.debit)}</td>
                 <td className="px-4 py-2.5" dir="ltr">{money(r.credit)}</td>
-                <td className="px-4 py-2.5 font-semibold" dir="ltr">
-                  <span className={r.balance > 0 ? "text-red-600" : r.balance < 0 ? "text-amber-700" : "text-gray-400"}>
-                    {money(Math.abs(r.balance))}
-                  </span>
-                  <span className="text-xs font-normal text-gray-400 ms-1">
-                    {r.balance > 0 ? positive || (r.nature === "DEBIT" ? "مدين" : "دائن") : r.balance < 0 ? negative || (r.nature === "DEBIT" ? "دائن" : "مدين") : ""}
-                  </span>
+                <td className={`px-4 py-2.5 font-semibold ${balanceTone(r.nature, r.balance)}`} dir="ltr">
+                  {money(Math.abs(r.balance))}
                 </td>
               </tr>
             ))}

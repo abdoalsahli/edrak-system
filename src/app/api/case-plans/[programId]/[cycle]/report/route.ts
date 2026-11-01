@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ok, notFound, badRequest } from "@/lib/api";
 import { requireProgramAccess } from "@/lib/casePlans/access";
 import { getCycle } from "@/lib/casePlans/CycleService";
+import { toJson } from "@/lib/json";
 
 const ReportSchema = z.object({
   reportDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "تاريخ التقرير غير صالح"),
@@ -58,9 +59,9 @@ export async function PUT(req: Request, { params }: { params: { programId: strin
     reportDate: new Date(d.reportDate),
     diagnosis: d.diagnosis,
     progressLevel: d.progressLevel,
-    changes: d.changes,
+    changes: toJson(d.changes),
     parentCommitment: d.parentCommitment,
-    obstacles: d.obstacles,
+    obstacles: toJson(d.obstacles),
     recommendations: d.recommendations,
     status,
     ...(d.submit ? { submittedAt: new Date() } : {}),

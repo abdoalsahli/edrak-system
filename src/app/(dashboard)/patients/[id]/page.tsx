@@ -101,7 +101,7 @@ export default async function PatientProfilePage({
         }
       />
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-3 [&>*]:min-w-0">
         {/* Profile column */}
         <div className="space-y-5">
           <div className="card p-6">

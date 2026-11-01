@@ -172,8 +172,8 @@ function CreateSessionModal({
   return (
     <Modal open={open} onClose={onClose} title="جلسة جديدة" size="lg">
       <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="col-span-full sm:col-span-2">
 <div className="flex items-center justify-between">
               <label className="label">الحالة <span className="text-red-500">*</span></label>
               <button type="button" onClick={() => setAddingPatient(true)} className="text-xs text-primary-600 hover:underline mb-1">
@@ -257,7 +257,7 @@ function CreateSessionModal({
           </label>
 
           {collectNow && (
-            <div className="grid grid-cols-2 gap-3 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               <div>
                 <label className="label text-xs">المبلغ المقبوض</label>
                 <input
@@ -283,7 +283,7 @@ function CreateSessionModal({
                 />
               </div>
 
-              <div className="col-span-2 flex items-center justify-between text-xs pt-1">
+              <div className="col-span-full sm:col-span-2 flex items-center justify-between text-xs pt-1">
                 <button
                   type="button"
                   onClick={() => setPayAmount(price)}
@@ -578,6 +578,8 @@ function MonthGrid({
 
 export default function SessionsCalendarPage() {
   const [view,        setView]        = useState<View>("week");
+  // A week of seven columns does not fit a phone: open on the day there
+  useEffect(() => { if (window.innerWidth < 768) setView("day"); }, []);
   const [current,     setCurrent]     = useState(new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading,     setLoading]     = useState(false);

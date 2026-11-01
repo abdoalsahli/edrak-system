@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { readApiError } from "@/lib/apiError";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
+import { StatementView } from "@/components/finance/StatementView";
 
 type Source = "OPENING" | "INVOICE" | "RECEIPT" | "PAYMENT" | "COMMISSION" | "SETTLEMENT";
 type Entry = { id: string; date: string; sourceType: Source; reference: string | null; description: string; debit: number; credit: number; balance: number };
@@ -78,7 +79,7 @@ export default function MyStatementPage() {
           </div>
           <p className="text-xs text-gray-500 mb-5">
             عمولة البرنامج تُسجَّل في حسابك عند إنشائه، وتُعدَّل إذا انتهى البرنامج قبل اكتمال جلساته أو أُلغي أو مُدِّد.
-            ما يُصرف لك يظهر في عمود «مدين».
+            ما يُصرف لك يظهر بالسالب (−) وما يُضاف لك بالموجب (+).
           </p>
         </>
       )}
@@ -100,60 +101,14 @@ export default function MyStatementPage() {
       </div>
 
       {data && (
-        <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-500 border-b border-gray-200">
-                <tr>
-                  <th className="px-4 py-2.5 text-start font-medium">التاريخ</th>
-                  <th className="px-4 py-2.5 text-start font-medium">النوع</th>
-                  <th className="px-4 py-2.5 text-start font-medium">البيان</th>
-                  <th className="px-4 py-2.5 text-start font-medium">مدين</th>
-                  <th className="px-4 py-2.5 text-start font-medium">دائن</th>
-                  <th className="px-4 py-2.5 text-start font-medium">الرصيد</th>
-                </tr>
-              </thead>
-              <tbody>
-                {from && (
-                  <tr className="border-b border-gray-100 bg-gray-50/50">
-                    <td className="px-4 py-2 text-gray-500" colSpan={5}>رصيد أول المدة</td>
-                    <td className="px-4 py-2 font-medium" dir="ltr">{money(data.broughtForward)}</td>
-                  </tr>
-                )}
-                {data.entries.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">لا توجد حركات في هذه الفترة</td></tr>
-                ) : (
-                  data.entries.map((e) => {
-                    const s = SOURCE[e.sourceType];
-                    return (
-                      <tr key={e.id} className="border-b border-gray-50 hover:bg-gray-50/60">
-                        <td className="px-4 py-2.5 whitespace-nowrap">{fmtDate(e.date)}</td>
-                        <td className="px-4 py-2.5 whitespace-nowrap">
-                          <Badge variant={s.variant}>{s.label}</Badge>
-                          {e.reference && <span className="block font-mono text-xs text-gray-400 mt-0.5" dir="ltr">{e.reference}</span>}
-                        </td>
-                        <td className="px-4 py-2.5">{e.description}</td>
-                        <td className="px-4 py-2.5 text-red-600" dir="ltr">{e.debit ? money(e.debit) : "—"}</td>
-                        <td className="px-4 py-2.5 text-green-700" dir="ltr">{e.credit ? money(e.credit) : "—"}</td>
-                        <td className={`px-4 py-2.5 font-medium ${e.balance < 0 ? "text-red-600" : ""}`} dir="ltr">{money(e.balance)}</td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-              {data.entries.length > 0 && (
-                <tfoot className="bg-gray-50 font-semibold text-sm">
-                  <tr>
-                    <td className="px-4 py-2.5" colSpan={3}>الإجمالي</td>
-                    <td className="px-4 py-2.5 text-red-600" dir="ltr">{money(data.totals.totalDebit)}</td>
-                    <td className="px-4 py-2.5 text-green-700" dir="ltr">{money(data.totals.totalCredit)}</td>
-                    <td className="px-4 py-2.5" dir="ltr">{money(data.totals.balance)}</td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-        </div>
+        <StatementView
+          entries={data.entries}
+          totals={data.totals}
+          broughtForward={data.broughtForward}
+          showBroughtForward={!!from}
+          nature="CREDIT"
+          sources={SOURCE}
+        />
       )}
     </div>
   );

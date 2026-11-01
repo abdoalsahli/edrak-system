@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import type { AccountKind, AccountNature } from "@prisma/client";
+import type { AccountKind, AccountNature } from "@/lib/enums";
 import { getBalances, getCashLedgerAccountId, naturalBalance } from "@/lib/ledger/LedgerService";
+import type { CashAccountType } from "@/lib/enums";
 
 /**
  * Treasury reporting — read entirely from the ledger.
@@ -11,13 +12,21 @@ import { getBalances, getCashLedgerAccountId, naturalBalance } from "@/lib/ledge
  *   payment   → credit the box (money out)
  *   transfer  → a settlement between two boxes
  *   opening   → the box's opening balance
+ *
+ * A transfer between two of the boxes being reported is internal: the money
+ * stays in the treasury, so it is left out of the totals and the analysis (it
+ * still shows in the detail, and in each box's own movement). Settlements with
+ * any other account (profits, stock-count shortage or surplus, …) are real
+ * movements and are analysed by what they were.
  */
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 export type TreasuryEntry = {
   date: string; // YYYY-MM-DD
-  type: "OPENING" | "RECEIPT" | "DISBURSEMENT" | "TRANSFER";
+  type: "OPENING" | "RECEIPT" | "DISBURSEMENT" | "TRANSFER" | "SETTLEMENT";
+  /** A transfer between two of the reported boxes — not money in or out of the treasury */
+  internal: boolean;
   voucherNumber: string;
   description: string;
   accountId: string; // the cash box id
@@ -49,8 +58,9 @@ export type TreasuryMovement = {
   breakdown: {
     receipts: number;
     openings: number;
-    transfersIn: number;
-    transfersOut: number;
+    /** Settlements and transfers with accounts outside the reported boxes, by what they were */
+    settlementsIn: Record<string, number>;
+    settlementsOut: Record<string, number>;
     byDisbursementType: Record<string, number>;
     byExpenseCategory: Record<string, number>;
   };
@@ -112,15 +122,46 @@ export async function getTreasuryMovement(opts: {
     : [];
   const disbOf = new Map(disbursements.map((d) => [d.id, d]));
 
+  // The other side of each settlement that touched a box
+  const settlementIds = [...new Set(rows.filter((r) => r.sourceType === "SETTLEMENT").map((r) => r.sourceId))];
+  const settlements = settlementIds.length
+    ? await prisma.settlement.findMany({
+        where: { id: { in: settlementIds } },
+        select: {
+          id: true, type: true, debitAccountId: true, creditAccountId: true,
+          debitAccount: { select: { name: true, kind: true } },
+          creditAccount: { select: { name: true, kind: true } },
+        },
+      })
+    : [];
+  const settlementOf = new Map(settlements.map((s) => [s.id, s]));
+  const reported = new Set(ledgerIds);
+
+  /** What a settlement on a box was, from the box's side: its label and whether it stays inside the treasury. */
+  const classify = (sourceId: string, boxLedgerId: string, isIn: boolean) => {
+    const s = settlementOf.get(sourceId);
+    if (!s) return { internal: false, label: "تسويات أخرى" };
+    const counterId = s.debitAccountId === boxLedgerId ? s.creditAccountId : s.debitAccountId;
+    const counter = s.debitAccountId === boxLedgerId ? s.creditAccount : s.debitAccount;
+    if (counterId && reported.has(counterId)) return { internal: true, label: "تحويل داخلي" };
+    if (counter?.kind === "CASH") return { internal: false, label: isIn ? `تحويل من ${counter.name}` : `تحويل إلى ${counter.name}` };
+    if (s.type === "CORRECTION") return { internal: false, label: isIn ? "زيادة جرد" : "عجز جرد" };
+    if (counter) return { internal: false, label: counter.name };
+    return { internal: false, label: "تسويات أخرى" };
+  };
+
   const breakdown: TreasuryMovement["breakdown"] = {
     receipts: 0,
     openings: 0,
-    transfersIn: 0,
-    transfersOut: 0,
+    settlementsIn: {},
+    settlementsOut: {},
     byDisbursementType: {},
     byExpenseCategory: {},
   };
   const perBox = new Map(boxes.map((b) => [b.ledgerAccountId, { in: 0, out: 0 }]));
+  // Money that really came into or left the treasury (internal transfers excluded)
+  let movedIn = 0;
+  let movedOut = 0;
 
   let running = [...bf.values()].reduce((s, v) => s + v, 0);
   const broughtForward = r2(running);
@@ -130,20 +171,33 @@ export async function getTreasuryMovement(opts: {
     const inAmt = Number(r.debit);
     const outAmt = Number(r.credit);
     running += inAmt - outAmt;
-    const acc = perBox.get(r.accountId)!;
-    acc.in += inAmt;
-    acc.out += outAmt;
 
+    const settlement = r.sourceType === "SETTLEMENT" ? classify(r.sourceId, r.accountId, inAmt > 0) : null;
     const type: TreasuryEntry["type"] =
       r.sourceType === "RECEIPT" ? "RECEIPT"
       : r.sourceType === "PAYMENT" ? "DISBURSEMENT"
       : r.sourceType === "OPENING" ? "OPENING"
-      : "TRANSFER";
+      : settlement?.internal ? "TRANSFER"
+      : "SETTLEMENT";
+    const internal = !!settlement?.internal;
+    // A box's own movement includes transfers with the other boxes;
+    // the treasury's totals leave them out
+    const acc = perBox.get(r.accountId)!;
+    acc.in += inAmt;
+    acc.out += outAmt;
+    if (!internal) {
+      movedIn += inAmt;
+      movedOut += outAmt;
+    }
 
     const disb = r.sourceType === "PAYMENT" ? disbOf.get(r.sourceId) : undefined;
     if (type === "RECEIPT") breakdown.receipts += inAmt - outAmt;
     else if (type === "OPENING") breakdown.openings += inAmt - outAmt;
-    else if (type === "TRANSFER") { breakdown.transfersIn += inAmt; breakdown.transfersOut += outAmt; }
+    else if (type === "SETTLEMENT") {
+      const label = settlement?.label ?? "تسويات أخرى";
+      if (inAmt) breakdown.settlementsIn[label] = r2((breakdown.settlementsIn[label] ?? 0) + inAmt);
+      if (outAmt) breakdown.settlementsOut[label] = r2((breakdown.settlementsOut[label] ?? 0) + outAmt);
+    }
     else if (disb) {
       breakdown.byDisbursementType[disb.type] = (breakdown.byDisbursementType[disb.type] ?? 0) + outAmt - inAmt;
       if (disb.type === "EXPENSE" && disb.expenseCategory) {
@@ -164,11 +218,12 @@ export async function getTreasuryMovement(opts: {
       balance: r2(running),
       disbursementType: disb?.type ?? null,
       expenseCategory: disb?.expenseCategory ?? null,
+      internal,
     };
   });
 
-  const totalIn = r2(entries.reduce((s, e) => s + e.in, 0));
-  const totalOut = r2(entries.reduce((s, e) => s + e.out, 0));
+  const totalIn = r2(movedIn);
+  const totalOut = r2(movedOut);
 
   const byAccount: AccountMovement[] = boxes.map((b) => {
     const open = bf.get(b.ledgerAccountId) ?? 0;
@@ -177,7 +232,7 @@ export async function getTreasuryMovement(opts: {
       id: b.id,
       ledgerAccountId: b.ledgerAccountId,
       name: b.name,
-      type: b.type,
+      type: b.type as CashAccountType,
       isActive: b.isActive,
       broughtForward: r2(open),
       totalIn: r2(mv.in),
@@ -188,8 +243,6 @@ export async function getTreasuryMovement(opts: {
 
   breakdown.receipts = r2(breakdown.receipts);
   breakdown.openings = r2(breakdown.openings);
-  breakdown.transfersIn = r2(breakdown.transfersIn);
-  breakdown.transfersOut = r2(breakdown.transfersOut);
   for (const k of Object.keys(breakdown.byDisbursementType)) breakdown.byDisbursementType[k] = r2(breakdown.byDisbursementType[k]);
   for (const k of Object.keys(breakdown.byExpenseCategory)) breakdown.byExpenseCategory[k] = r2(breakdown.byExpenseCategory[k]);
 
@@ -253,12 +306,12 @@ export async function getAccountBalances(asOf: Date): Promise<AccountBalances> {
     const t = sums.get(a.id) ?? { debit: 0, credit: 0 };
     // Accounts that never moved add nothing — except custom ones and cash boxes
     if (t.debit === 0 && t.credit === 0 && a.kind !== "CUSTOM" && a.kind !== "CASH") continue;
-    groups[a.kind].push({
+    groups[a.kind as AccountKind].push({
       id: a.id,
       code: a.code,
       name: a.name,
-      kind: a.kind,
-      nature: a.nature,
+      kind: a.kind as AccountKind,
+      nature: a.nature as AccountNature,
       isActive: a.isActive,
       debit: r2(t.debit),
       credit: r2(t.credit),
@@ -274,7 +327,7 @@ export async function getAccountBalances(asOf: Date): Promise<AccountBalances> {
     id: b.id,
     ledgerAccountId: b.ledgerAccountId,
     name: b.name,
-    type: b.type,
+    type: b.type as CashAccountType,
     isActive: b.isActive,
     balance: cashRow.get(b.ledgerAccountId)?.balance ?? 0,
   }));

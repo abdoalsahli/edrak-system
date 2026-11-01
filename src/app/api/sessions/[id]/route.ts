@@ -5,6 +5,7 @@ import { rescheduleSession, validateAvailability } from "@/lib/scheduling/Schedu
 import { recalcInvoiceForSession, recalcProgramInvoice } from "@/lib/billing/InvoiceService";
 import { syncCommissionLedger, syncProgramCommissionLedger, deleteSourceEntries } from "@/lib/ledger/LedgerService";
 import { z } from "zod";
+import { toJson } from "@/lib/json";
 
 const OutcomeSchema = z
   .object({
@@ -185,8 +186,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         data: {
           sessionId: params.id,
           action: "CHARGE_CHANGED",
-          previousValue: { isCharged: target.isCharged },
-          newValue: { isCharged: charge },
+          previousValue: toJson({ isCharged: target.isCharged }),
+          newValue: toJson({ isCharged: charge }),
           performedBy: auth.id,
         },
       });
@@ -285,14 +286,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         data: {
           sessionId: session.id,
           action: "UPDATED",
-          previousValue: {
+          previousValue: toJson({
             service: session.service.name, price: Number(session.price ?? 0),
             therapistId: apt?.therapistId ?? null, date: curDate, startTime: apt?.startTime ?? null, endTime: apt?.endTime ?? null,
-          },
-          newValue: {
+          }),
+          newValue: toJson({
             service: newService?.name ?? session.service.name, price: priceChanged ? d.price : Number(session.price ?? 0),
             therapistId, date, startTime, endTime,
-          },
+          }),
           performedBy: auth.id,
         },
       });
@@ -457,8 +458,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       data: {
         sessionId: params.id,
         action: "OUTCOME_RECORDED",
-        previousValue: { status: "PENDING" },
-        newValue: { status: d.status, notes: d.outcomeNotes, charged: d.status === "COMPLETED" ? true : charge },
+        previousValue: toJson({ status: "PENDING" }),
+        newValue: toJson({ status: d.status, notes: d.outcomeNotes, charged: d.status === "COMPLETED" ? true : charge }),
         performedBy: auth.id,
       },
     });

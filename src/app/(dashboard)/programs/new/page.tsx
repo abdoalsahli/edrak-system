@@ -144,7 +144,7 @@ export default function NewProgramPage() {
         <PageHeader title="معاينة الجدول" />
 
         {/* Summary bar */}
-        <div className="grid grid-cols-4 gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-5">
           {[
             { label: "إجمالي الجلسات", value: proposed.length, color: "text-primary-700 bg-primary-50" },
             { label: "قيمة البرنامج", value: `${programTotal.toFixed(2)} د.ل`, color: "text-blue-700 bg-blue-50" },
@@ -162,7 +162,7 @@ export default function NewProgramPage() {
 
         <ScheduleCalendar proposed={proposed} onChange={setProposed} durationMin={durationMin} />
 
-        <div className="card p-4 mt-4 grid grid-cols-3 gap-4 text-sm">
+        <div className="card p-4 mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
           <div>
             <p className="text-xs text-gray-500">قيمة الجلسة الواحدة</p>
             <p className="font-bold text-gray-800 mt-0.5" dir="ltr">{perSession.toFixed(2)} د.ل</p>
@@ -193,7 +193,7 @@ export default function NewProgramPage() {
           </label>
 
           {collectNow && (
-            <div className="grid grid-cols-2 gap-3 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               <div>
                 <label className="label text-xs">المبلغ المقبوض</label>
                 <input
@@ -219,7 +219,7 @@ export default function NewProgramPage() {
                 />
               </div>
 
-              <div className="col-span-2 flex items-center justify-between text-xs pt-1">
+              <div className="col-span-full sm:col-span-2 flex items-center justify-between text-xs pt-1">
                 <div className="flex gap-3">
                   <button type="button" onClick={() => setPayAmount(programTotal)} className="text-primary-600 hover:underline">
                     القيمة كاملة
@@ -289,7 +289,7 @@ export default function NewProgramPage() {
           </select>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="label">تاريخ البدء <span className="text-red-500">*</span></label>
             <input required type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input" dir="ltr" />
@@ -310,7 +310,7 @@ export default function NewProgramPage() {
           allowedDays={allowedDays} onAllowedDays={setAllowedDays}
         />
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="label">إجمالي قيمة البرنامج (د.ل) <span className="text-red-500">*</span></label>
             <input

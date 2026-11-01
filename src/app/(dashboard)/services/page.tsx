@@ -191,12 +191,12 @@ export default function ServicesPage() {
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? "تعديل الخدمة" : "إضافة خدمة جديدة"} size="lg">
         <form onSubmit={handleSave} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="col-span-full sm:col-span-2">
               <label className="label">اسم الخدمة <span className="text-red-500">*</span></label>
               <input required value={form.name} onChange={(e) => set("name", e.target.value)} className="input" />
             </div>
-            <div className="col-span-2">
+            <div className="col-span-full sm:col-span-2">
               <label className="label">الوصف</label>
               <input value={form.description ?? ""} onChange={(e) => set("description", e.target.value)} className="input" />
             </div>
@@ -240,7 +240,7 @@ export default function ServicesPage() {
 
             {/* Price applies to every service type — a service without a price
                 produces zero-value invoices. */}
-            <div className="col-span-2">
+            <div className="col-span-full sm:col-span-2">
               <label className="label">
                 سعر الجلسة (د.ل) <span className="text-red-500">*</span>
               </label>

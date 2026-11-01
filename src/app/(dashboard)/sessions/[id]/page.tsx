@@ -349,7 +349,7 @@ export default function SessionDetailPage() {
       {/* Reschedule Modal */}
       <Modal open={rescheduleModal} onClose={() => setRescheduleModal(false)} title="إعادة جدولة الموعد">
         <form onSubmit={reschedule} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">التاريخ الجديد</label>
               <input required type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="input" dir="ltr" />

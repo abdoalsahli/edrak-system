@@ -90,7 +90,8 @@ export default function FinanceDashboard() {
         </Link>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-3">
+      {/* min-w-0 lets the tables scroll inside their card instead of widening the page */}
+      <div className="grid gap-5 xl:grid-cols-3 [&>*]:min-w-0">
         {/* Cash boxes — the first one highlighted */}
         <section className="card p-5">
           <div className="mb-4 flex items-center justify-between gap-2">

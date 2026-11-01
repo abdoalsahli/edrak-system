@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ok, notFound } from "@/lib/api";
 import { requireProgramAccess } from "@/lib/casePlans/access";
 import { getCycle } from "@/lib/casePlans/CycleService";
+import { fromJsonList } from "@/lib/json";
 
 const planInclude = {
   goals: { orderBy: { sortOrder: "asc" as const } },
@@ -41,7 +42,10 @@ export async function GET(_req: Request, { params }: { params: { programId: stri
   ]);
 
   const role = access.auth.role;
-  const report = plan?.report ?? null;
+  // Lists are stored as JSON text; the pages get them as lists
+  const report = plan?.report
+    ? { ...plan.report, changes: fromJsonList(plan.report.changes), obstacles: fromJsonList(plan.report.obstacles) }
+    : null;
   return ok({
     program: {
       id: program.id, status: program.status,
@@ -49,14 +53,14 @@ export async function GET(_req: Request, { params }: { params: { programId: stri
     },
     cycle,
     cycleCount: data.cycles.length,
-    plan,
+    plan: plan ? { ...plan, focusAreas: fromJsonList(plan.focusAreas), report } : null,
     report,
     previous: previous
       ? {
           cycleNumber: previous.cycleNumber,
           plan: {
             caseSummary: previous.caseSummary, longTermGoals: previous.longTermGoals, methods: previous.methods,
-            focusAreas: previous.focusAreas, notes: previous.notes, goals: previous.goals.map((g) => g.text),
+            focusAreas: fromJsonList(previous.focusAreas), notes: previous.notes, goals: previous.goals.map((g) => g.text),
           },
           recommendations: previous.report?.recommendations ?? null,
           diagnosis: previous.report?.diagnosis ?? null,

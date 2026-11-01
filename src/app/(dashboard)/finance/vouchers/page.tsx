@@ -94,7 +94,7 @@ export default function VouchersPage() {
       <SectionTabs tabs={DOCUMENT_TABS} />
 
       <div className="card p-4 mb-4">
-        <div className="grid grid-cols-5 gap-3 items-end">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 items-end">
           <div>
             <label className="label text-xs">النوع</label>
             <select value={type} onChange={e => setType(e.target.value)} className="input text-sm">
@@ -137,13 +137,13 @@ export default function VouchersPage() {
           <Table>
             <Thead>
               <tr>
-                <Th>رقم السند</Th>
-                <Th>التاريخ</Th>
-                <Th>النوع</Th>
+                <Th card="meta">رقم السند</Th>
+                <Th card="meta">التاريخ</Th>
+                <Th card="meta">النوع</Th>
                 <Th>البيان</Th>
-                <Th>المستفيد</Th>
+                <Th card="title">المستفيد</Th>
                 <Th>من صندوق</Th>
-                <Th>المبلغ</Th>
+                <Th card="amount">المبلغ</Th>
               </tr>
             </Thead>
             <Tbody>

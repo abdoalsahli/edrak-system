@@ -202,7 +202,7 @@ export default function EditProgramPage() {
     return (
       <div className="max-w-4xl">
         <PageHeader title="معاينة المواعيد الجديدة" description={subtitle} />
-        <div className="grid grid-cols-3 gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
           {[
             { label: "جلسات ستُنقل", value: proposed.length, color: "text-primary-700 bg-primary-50" },
             { label: "من", value: proposed[0] ? fmtDateAr(proposed[0].date).split("،")[1].trim() : "—", color: "text-gray-700 bg-gray-50" },
@@ -260,7 +260,7 @@ export default function EditProgramPage() {
 
         {pending.length > 0 && (
           <>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="label">ابتداءً من <span className="text-red-500">*</span></label>
                 <input required type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input" dir="ltr" />
@@ -298,7 +298,7 @@ export default function EditProgramPage() {
             الحالي: {money(Number(program.sessionPrice ?? 0))} للجلسة · عمولة {money(Number(program.sessionCommission ?? 0))}
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="label">قيمة الجلسة الجديدة (د.ل) <span className="text-red-500">*</span></label>
             <input required type="number" min={0} step="0.01" value={price}

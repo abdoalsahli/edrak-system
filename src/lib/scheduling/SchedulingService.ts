@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { addDays, format, parseISO, isAfter, isBefore, isEqual, addWeeks } from "date-fns";
+import { toJson } from "@/lib/json";
 
 export type ProposedAppointment = {
   date: string;       // "YYYY-MM-DD"
@@ -250,8 +251,8 @@ export async function rescheduleSession(
       data: {
         sessionId,
         action: "RESCHEDULED",
-        previousValue: { date: currentApt.date, startTime: currentApt.startTime },
-        newValue: { date: newDate, startTime: newStartTime },
+        previousValue: toJson({ date: currentApt.date, startTime: currentApt.startTime }),
+        newValue: toJson({ date: newDate, startTime: newStartTime }),
         performedBy: scheduledBy,
       },
     });
@@ -305,8 +306,8 @@ export async function createReplacementAppointment(
       data: {
         sessionId: original.sessionId,
         action: "MAKEUP_CREATED",
-        previousValue: { originalAppointmentId },
-        newValue: { date: newDate, startTime: newStartTime },
+        previousValue: toJson({ originalAppointmentId }),
+        newValue: toJson({ date: newDate, startTime: newStartTime }),
         performedBy: scheduledBy,
       },
     });
